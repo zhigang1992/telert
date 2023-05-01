@@ -7,10 +7,13 @@
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
+import {Telegraf} from "telegraf";
+import {Application, Router} from "@cfworker/web";
+import createTelegrafMiddleware from 'cfworker-middleware-telegraf'
 
 export interface Env {
 	// Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
-	// MY_KV_NAMESPACE: KVNamespace;
+	TG_GROUPS: KVNamespace;
 	//
 	// Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
 	// MY_DURABLE_OBJECT: DurableObjectNamespace;
@@ -22,12 +25,16 @@ export interface Env {
 	// MY_SERVICE: Fetcher;
 }
 
-export default {
-	async fetch(
-		request: Request,
-		env: Env,
-		ctx: ExecutionContext
-	): Promise<Response> {
-		return new Response("Hello World!");
-	},
-};
+declare global {
+	const BOT_TOKEN: string
+	const SECRET_PATH: string
+}
+
+const bot = new Telegraf(BOT_TOKEN);
+
+// Your code here, but do not `bot.launch()`
+// Do not forget to set environment variables BOT_TOKEN and SECRET_PATH on your worker
+
+const router = new Router();
+router.post(`/${SECRET_PATH}`, createTelegrafMiddleware(bot));
+new Application().use(router.middleware).listen();

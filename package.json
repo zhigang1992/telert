@@ -12,5 +12,10 @@
     "start": "wrangler dev",
     "deploy": "wrangler publish",
     "test": "vitest"
+  },
+  "dependencies": {
+    "@cfworker/web": "^1.12.5",
+    "cfworker-middleware-telegraf": "^2.0.2",
+    "telegraf": "^4.12.2"
   }
 }
