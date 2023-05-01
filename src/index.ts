@@ -89,14 +89,16 @@ async function processUpdate(update: Update): Promise<void> {
 
 <code>
 {
-  "topic": "WebApp",
   "event": "New User Registered",
+  "channel": "WebApp",
   "emoji": "👋",
   "metadata": {
     "email": "test@example.com"
   }
 }
 </code>
+
+* Only event is required 
 `,
       "HTML"
     );
