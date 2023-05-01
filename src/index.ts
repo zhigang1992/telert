@@ -85,7 +85,7 @@ async function processUpdate(update: Update): Promise<void> {
     }
     await sendToChat(
       chat,
-      `<a href="${webhookUrl}">${webhookUrl}</a>
+      `<code>${webhookUrl}</code>
 
 <code>
 {
