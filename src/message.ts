@@ -1,5 +1,5 @@
 export type RichMessage = {
-  topic: string;
+  channel?: string;
   event: string;
   text?: string;
   emoji?: string;
@@ -10,13 +10,19 @@ export function formatRichMessage(message: RichMessage): string {
   const metadata = Object.entries(message.metadata ?? {})
     .map(([key, value]) => `#${key}: ${value}`)
     .join("\n");
-  return `${message.emoji ? message.emoji + " • " : ""}<ins>#${
-    message.topic
-  }</ins>
+  return `${message.emoji ? message.emoji + " • " : ""}${
+    message.channel
+      ? `<ins>#${message.channel}</ins>
 
-<b>${message.event}</b>${message.text ? `
+`
+      : ""
+  }<b>${message.event}</b>${
+    message.text
+      ? `
 
-<code>${message.text}</code>` : ""}
+<code>${message.text}</code>`
+      : ""
+  }
 
 ${metadata}`;
 }
