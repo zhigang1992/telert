@@ -76,7 +76,19 @@ async function processUpdate(update: Update): Promise<void> {
       await TG_GROUPS.put(`webhook-chat:${result}`, chatId.toString());
       webhookUrl = `${WEBHOOK_PREFIX}/t/${result}`;
     }
-    await sendToChat(chatId, webhookUrl);
+    await sendToChat(chatId, `<a href="${webhookUrl}>${webhookUrl}</a>
+
+<code>
+{
+  "topic": "WebApp",
+  "event": "New User Registered",
+  "emoji": "👋",
+  "metadata": {
+    "email": "test@example.com"
+  }
+}
+</code>
+`, 'HTML');
   }
 }
 
