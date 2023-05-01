@@ -7,34 +7,93 @@
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
-import {Telegraf} from "telegraf";
-import {Application, Router} from "@cfworker/web";
-import createTelegrafMiddleware from 'cfworker-middleware-telegraf'
-
-export interface Env {
-	// Example binding to KV. Learn more at https://developers.cloudflare.com/workers/runtime-apis/kv/
-	TG_GROUPS: KVNamespace;
-	//
-	// Example binding to Durable Object. Learn more at https://developers.cloudflare.com/workers/runtime-apis/durable-objects/
-	// MY_DURABLE_OBJECT: DurableObjectNamespace;
-	//
-	// Example binding to R2. Learn more at https://developers.cloudflare.com/workers/runtime-apis/r2/
-	// MY_BUCKET: R2Bucket;
-	//
-	// Example binding to a Service. Learn more at https://developers.cloudflare.com/workers/runtime-apis/service-bindings/
-	// MY_SERVICE: Fetcher;
-}
+import { Application, Router } from "@cfworker/web";
+import type { Update } from "@grammyjs/types";
+import { formatRichMessage, RichMessage } from "./message";
 
 declare global {
-	const BOT_TOKEN: string
-	const SECRET_PATH: string
-}
+  const BOT_TOKEN: string;
 
-const bot = new Telegraf(BOT_TOKEN);
+  const WEBHOOK_PREFIX: string;
+
+  const TG_GROUPS: KVNamespace;
+}
 
 // Your code here, but do not `bot.launch()`
 // Do not forget to set environment variables BOT_TOKEN and SECRET_PATH on your worker
 
 const router = new Router();
-router.post(`/${SECRET_PATH}`, createTelegrafMiddleware(bot));
+router.post("/bot", async (context) => {
+  const result: Update = await context.req.body.json();
+  await processUpdate(result);
+  console.log(JSON.stringify(result, null, 2));
+  context.res.body = { ok: true };
+});
+
+router.post("/t/:webhookId/raw", async (context) => {
+  const chatId = await TG_GROUPS.get(
+    `webhook-chat:${context.req.params.webhookId}`
+  );
+  if (chatId == null) {
+    context.res.body = { ok: false, error: "chatId not found" };
+    context.res.status = 404;
+  }
+  const result = await context.req.body.text();
+  await sendToChat(Number(chatId), result);
+  context.res.body = { ok: true };
+});
+
+router.post("/t/:webhookId", async (context) => {
+  const chatId = await TG_GROUPS.get(
+    `webhook-chat:${context.req.params.webhookId}`
+  );
+  if (chatId == null) {
+    context.res.body = { ok: false, error: "chatId not found" };
+    context.res.status = 404;
+  }
+  const result: RichMessage = await context.req.body.json();
+  await sendToChat(Number(chatId), formatRichMessage(result), "HTML");
+  context.res.body = { ok: true };
+});
+
 new Application().use(router.middleware).listen();
+
+async function processUpdate(update: Update): Promise<void> {
+  if (update.message == null) {
+    return;
+  }
+  if (update.message.text === "/webhook") {
+    const chatId = update.message.chat.id;
+    const key = `chat-webhook:${chatId}`;
+    const result = await TG_GROUPS.get(key);
+    let webhookUrl: string;
+    if (result == null) {
+      const uuid = crypto.randomUUID();
+      await TG_GROUPS.put(key, uuid);
+      await TG_GROUPS.put(`webhook-chat:${uuid}`, chatId.toString());
+      webhookUrl = `${WEBHOOK_PREFIX}/t/${uuid}`;
+    } else {
+      await TG_GROUPS.put(`webhook-chat:${result}`, chatId.toString());
+      webhookUrl = `${WEBHOOK_PREFIX}/t/${result}`;
+    }
+    await sendToChat(chatId, webhookUrl);
+  }
+}
+
+async function sendToChat(
+  chatId: number,
+  text: string,
+  parseMode?: "HTML"
+): Promise<void> {
+  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      chat_id: chatId,
+      text,
+      parse_mode: parseMode,
+    }),
+  });
+}

@@ -4,9 +4,6 @@ dependencies:
   '@cfworker/web':
     specifier: ^1.12.5
     version: 1.12.5
-  cfworker-middleware-telegraf:
-    specifier: ^2.0.2
-    version: 2.0.2(@cfworker/web@1.12.5)(telegraf@4.12.2)
   telegraf:
     specifier: ^4.12.2
     version: 4.12.2
@@ -15,6 +12,12 @@ devDependencies:
   '@cloudflare/workers-types':
     specifier: ^4.20230404.0
     version: 4.20230404.0
+  '@grammyjs/types':
+    specifier: ^3.1.1
+    version: 3.1.1
+  prettier:
+    specifier: ^2.8.8
+    version: 2.8.8
   typescript:
     specifier: ^5.0.4
     version: 5.0.4
@@ -480,6 +483,10 @@ packages:
     dev: true
     optional: true
 
+  /@grammyjs/types@3.1.1:
+    resolution: {integrity: sha512-nTNYvk+Al/nXZAMTEzPYEyW6pfgYgNuf/gxfx17kCxjHpAYhV+pcmROuD9eOBDLaBDh/hZJkQTIY6S3CfTAC0Q==}
+    dev: true
+
   /@iarna/toml@2.2.5:
     resolution: {integrity: sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==}
     dev: true
@@ -741,10 +748,6 @@ packages:
       event-target-shim: 5.0.1
     dev: false
 
-  /abortcontroller-polyfill@1.7.5:
-    resolution: {integrity: sha512-JMJ5soJWP18htbbxJjG7bG6yuI6pRhgJ0scHHTfkUjf6wjP912xZWvM+A4sJK3gqd9E8fcPbDnOefbA9Th/FIQ==}
-    dev: false
-
   /acorn-walk@8.2.0:
     resolution: {integrity: sha512-k+iyHEuPgSw6SbuDpGQM+06HQUa04DZ3o+F6CSzXMvvI5KMvnaEqXe+YVe555R9nn6GPt404fos4wcgpw12SDA==}
     engines: {node: '>=0.4.0'}
@@ -834,17 +837,6 @@ packages:
     resolution: {integrity: sha512-b6Ilus+c3RrdDk+JhLKUAQfzzgLEPy6wcXqS7f/xe1EETvsDP6GORG7SFuOs6cID5YkqchW/LXZbX5bc8j7ZcQ==}
     engines: {node: '>=8'}
     dev: true
-
-  /cfworker-middleware-telegraf@2.0.2(@cfworker/web@1.12.5)(telegraf@4.12.2):
-    resolution: {integrity: sha512-3tj4R60AyTioaxS88shO4AYcL4N6QLPEeU5kflF5zIXHc4EI3yzbZLUEphe7/ExTVVrLJI9IwPP3JfOUZltiJw==}
-    peerDependencies:
-      '@cfworker/web': ^1.12.0
-      telegraf: ^4.6.0
-    dependencies:
-      '@cfworker/web': 1.12.5
-      abortcontroller-polyfill: 1.7.5
-      telegraf: 4.12.2
-    dev: false
 
   /chai@4.3.7:
     resolution: {integrity: sha512-HLnAzZ2iupm25PlN0xFreAlBA5zaBSv3og0DdeGA4Ar6h6rJ3A0rolRUKJhSF2V10GZKDgWF/VmAEsNWjCRB+A==}
@@ -1376,6 +1368,12 @@ packages:
       nanoid: 3.3.6
       picocolors: 1.0.0
       source-map-js: 1.0.2
+    dev: true
+
+  /prettier@2.8.8:
+    resolution: {integrity: sha512-tdN8qQGvNjw4CHbY+XXk0JgCXn9QiF21a55rBe5LJAU+kDyC4WQn4+awm2Xfk2lQMk5fKup9XgzTZtGkjBdP9Q==}
+    engines: {node: '>=10.13.0'}
+    hasBin: true
     dev: true
 
   /pretty-format@27.5.1:
