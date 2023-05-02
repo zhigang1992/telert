@@ -71,16 +71,17 @@ async function processUpdate(update: Update): Promise<void> {
       chatId,
       messageThreadId: update.message.message_thread_id,
     };
-    const key = `chat-webhook:${JSON.stringify(chat)}`;
+    const chatKey = JSON.stringify(chat);
+    const key = `chat-webhook:${chatKey}`;
     const result = await TG_GROUPS.get(key);
     let webhookUrl: string;
     if (result == null) {
       const uuid = crypto.randomUUID();
       await TG_GROUPS.put(key, uuid);
-      await TG_GROUPS.put(`webhook-chat:${uuid}`, JSON.stringify(chat));
+      await TG_GROUPS.put(`webhook-chat:${uuid}`, chatKey);
       webhookUrl = `${WEBHOOK_PREFIX}/t/${uuid}`;
     } else {
-      await TG_GROUPS.put(`webhook-chat:${result}`, JSON.stringify(chat));
+      await TG_GROUPS.put(`webhook-chat:${result}`, chatKey);
       webhookUrl = `${WEBHOOK_PREFIX}/t/${result}`;
     }
     await sendToChat(
