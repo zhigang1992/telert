@@ -4,6 +4,7 @@ export type RichMessage = {
   text?: string;
   emoji?: string;
   metadata?: Record<string, string>;
+  notify?: boolean;
 };
 
 export function formatRichMessage(message: RichMessage): string {

@@ -54,7 +54,10 @@ router.post("/t/:webhookId", async (context) => {
     return;
   }
   const result: RichMessage = await context.req.body.json();
-  await sendToChat(JSON.parse(chat), formatRichMessage(result), "HTML");
+  await sendToChat(JSON.parse(chat), formatRichMessage(result), {
+    parseMode: "HTML",
+    disableNotification: result.notify === false,
+  });
   context.res.body = { ok: true };
 });
 
@@ -95,13 +98,16 @@ async function processUpdate(update: Update): Promise<void> {
   "emoji": "👋",
   "metadata": {
     "email": "test@example.com"
-  }
+  },
+  "notify": true
 }
 </code>
 
 * Only event is required 
 `,
-      "HTML"
+      {
+        parseMode: "HTML",
+      }
     );
   }
 }
@@ -112,7 +118,10 @@ async function sendToChat(
     messageThreadId?: number;
   },
   text: string,
-  parseMode?: "HTML"
+  options?: {
+    parseMode?: "HTML";
+    disableNotification?: boolean;
+  }
 ): Promise<void> {
   await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
     method: "POST",
@@ -123,7 +132,8 @@ async function sendToChat(
       chat_id: chat.chatId,
       message_thread_id: chat.messageThreadId,
       text,
-      parse_mode: parseMode,
+      parse_mode: options?.parseMode,
+      disable_notification: options?.disableNotification,
     }),
   });
 }
