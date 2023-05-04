@@ -64,7 +64,6 @@ router.post("/t/:webhookId", async (context) => {
 new Application().use(router.middleware).listen();
 
 async function processUpdate(update: Update): Promise<void> {
-  console.log(JSON.stringify(update, null, 2));
   if (update.message == null) {
     return;
   }

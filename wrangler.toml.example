@@ -1,0 +1,11 @@
+name = "telert"
+main = "src/index.ts"
+compatibility_date = "2023-05-01"
+
+kv_namespaces = [
+  { binding = "TG_GROUPS", id = "***", preview_id = "***" }
+]
+
+[vars]
+BOT_TOKEN = "***"
+WEBHOOK_PREFIX = "***"
