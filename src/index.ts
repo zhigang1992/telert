@@ -68,7 +68,10 @@ async function processUpdate(update: Update): Promise<void> {
   if (update.message == null) {
     return;
   }
-  if (update.message.text === "/webhook") {
+  if (
+    update.message.text === "/webhook" ||
+    update.message.text === "/webhook@telerts_bot"
+  ) {
     const chatId = update.message.chat.id;
     const chat = {
       chatId,
