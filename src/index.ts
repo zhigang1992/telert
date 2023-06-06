@@ -154,7 +154,7 @@ async function sendToChat(
   });
 }
 
-export async function uploadFileToChat(
+async function uploadFileToChat(
   chat: {
     chatId: number;
     messageThreadId?: number;
