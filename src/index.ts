@@ -44,6 +44,20 @@ router.post("/t/:webhookId/raw", async (context) => {
   context.res.body = { ok: true };
 });
 
+router.post("/t/:webhookId/file", async (context) => {
+  const chat = await TG_GROUPS.get(
+    `webhook-chat:${context.req.params.webhookId}`
+  );
+  if (chat == null) {
+    context.res.body = { ok: false, error: "chatId not found" };
+    context.res.status = 404;
+    return;
+  }
+  const result = await context.req.body.json();
+  await uploadFileToChat(JSON.parse(chat), result.fileName, result.content);
+  context.res.body = { ok: true };
+});
+
 router.post("/t/:webhookId", async (context) => {
   const chat = await TG_GROUPS.get(
     `webhook-chat:${context.req.params.webhookId}`
@@ -138,4 +152,40 @@ async function sendToChat(
       disable_notification: options?.disableNotification,
     }),
   });
+}
+
+export async function uploadFileToChat(
+  chat: {
+    chatId: number;
+    messageThreadId?: number;
+  },
+  fileName: string,
+  content: string
+) {
+  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "multipart/form-data; boundary=WebAppBoundary",
+    },
+    body: `--WebAppBoundary
+Content-Disposition: form-data; name="chat_id"
+Content-Type: text/plain
+
+${chat.chatId}
+${
+  chat.messageThreadId != null
+    ? `--WebAppBoundary
+Content-Disposition: form-data; name="message_thread_id"
+Content-Type: text/plain
+
+${chat.messageThreadId}
+`
+    : ""
+}--WebAppBoundary
+Content-Disposition: form-data; name="document"; filename="${fileName}"
+Content-Type: application/octet-stream
+
+${content}
+--WebAppBoundary--`.replace(/\n/g, "\r\n"),
+  }).then((a) => a.json());
 }
