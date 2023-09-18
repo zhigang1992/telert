@@ -10,6 +10,7 @@
 import { Application, Router } from "@cfworker/web";
 import type { Update } from "@grammyjs/types";
 import { formatRichMessage, RichMessage } from "./message";
+import { get } from "./get";
 
 declare global {
   const BOT_TOKEN: string;
@@ -68,6 +69,52 @@ router.post("/t/:webhookId", async (context) => {
     return;
   }
   const result: RichMessage = await context.req.body.json();
+  await sendToChat(JSON.parse(chat), formatRichMessage(result), {
+    parseMode: "HTML",
+    disableNotification: result.notify === false,
+  });
+  context.res.body = { ok: true };
+});
+
+router.post("/t/:webhookId/map", async (context) => {
+  const chat = await TG_GROUPS.get(
+    `webhook-chat:${context.req.params.webhookId}`
+  );
+  if (chat == null) {
+    context.res.body = { ok: false, error: "chatId not found" };
+    context.res.status = 404;
+    return;
+  }
+  const input = await context.req.body.json().catch(() => ({}));
+  const search = context.req.url.searchParams;
+  function getContent(key: string): string | undefined {
+    const param = search.get(key);
+    if (!param) {
+      return undefined;
+    }
+    return param.startsWith("$json") ? get(input, param.slice(6)) : param;
+  }
+  const metadataParams = Array.from(search.entries()).filter(([k]) =>
+    k.startsWith("metadata.")
+  );
+  const result: RichMessage = {
+    event: getContent("event") || "Unknown Event",
+    text: getContent("text"),
+    channel: getContent("channel"),
+    emoji: getContent("emoji"),
+    notify: search.get("notify") !== "false",
+    metadata:
+      metadataParams.length === 0
+        ? undefined
+        : Object.fromEntries(
+            metadataParams
+              .map(([k, v]) => [k.slice(9), v])
+              .map(([key, value]) => [
+                key,
+                value.startsWith("$json") ? get(input, value.slice(6)) : value,
+              ])
+          ),
+  };
   await sendToChat(JSON.parse(chat), formatRichMessage(result), {
     parseMode: "HTML",
     disableNotification: result.notify === false,
