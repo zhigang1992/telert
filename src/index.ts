@@ -7,7 +7,7 @@
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
-import { Application, Router } from "@cfworker/web";
+import { Application, Middleware, Router } from "@cfworker/web";
 import type { Update } from "@grammyjs/types";
 import { formatRichMessage, RichMessage } from "./message";
 import { get } from "./get";
@@ -122,7 +122,12 @@ router.post("/t/:webhookId/map", async (context) => {
   context.res.body = { ok: true };
 });
 
-new Application().use(router.middleware).listen();
+const cors: Middleware = async ({ res }, next) => {
+  res.headers.set("access-control-allow-origin", "*");
+  await next();
+};
+
+new Application().use(cors).use(router.middleware).listen();
 
 async function processUpdate(update: Update): Promise<void> {
   if (update.message == null) {
