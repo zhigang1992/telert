@@ -167,6 +167,7 @@ async function processUpdate(update: Update): Promise<void> {
   "metadata": {
     "email": "test@example.com"
   },
+  "text": "Congratz! New user just registered",
   "notify": true
 }
 </code>
