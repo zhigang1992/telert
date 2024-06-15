@@ -130,17 +130,15 @@ const cors: Middleware = async ({ res }, next) => {
 new Application().use(cors).use(router.middleware).listen();
 
 async function processUpdate(update: Update): Promise<void> {
-  if (update.message == null) {
+  const message = update.message ?? update.channel_post;
+  if (message == null) {
     return;
   }
-  if (
-    update.message.text === "/webhook" ||
-    update.message.text === "/webhook@telerts_bot"
-  ) {
-    const chatId = update.message.chat.id;
+  if (message.text === "/webhook" || message.text === "/webhook@telerts_bot") {
+    const chatId = message.chat.id;
     const chat = {
       chatId,
-      messageThreadId: update.message.message_thread_id,
+      messageThreadId: message.message_thread_id,
     };
     const chatKey = JSON.stringify(chat);
     const key = `chat-webhook:${chatKey}`;
