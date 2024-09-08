@@ -7,9 +7,9 @@
  *
  * Learn more at https://developers.cloudflare.com/workers/
  */
-import { Application, Middleware, Router } from "@cfworker/web";
+import { Application, type Middleware, Router } from "@cfworker/web";
 import type { Update } from "@grammyjs/types";
-import { formatRichMessage, RichMessage } from "./message";
+import { formatRichMessage, type RichMessage } from "./message";
 import { get } from "./get";
 
 declare global {
