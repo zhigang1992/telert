@@ -11,6 +11,8 @@ import { Application, type Middleware, Router } from "@cfworker/web";
 import type { Update } from "@grammyjs/types";
 import { formatRichMessage, type RichMessage } from "./message";
 import { get } from "./get";
+// @ts-ignore
+import indexHtml from './index.html';
 
 declare global {
   const BOT_TOKEN: string;
@@ -24,6 +26,11 @@ declare global {
 // Do not forget to set environment variables BOT_TOKEN and SECRET_PATH on your worker
 
 const router = new Router();
+router.get("/", (context) => {
+  context.res.headers.set("Content-Type", "text/html");
+  context.res.body = indexHtml;
+});
+
 router.post("/bot", async (context) => {
   const result: Update = await context.req.body.json();
   await processUpdate(result);
