@@ -141,6 +141,34 @@ async function processUpdate(update: Update): Promise<void> {
   if (message == null) {
     return;
   }
+  
+  // Handle migration to supergroup
+  if (message.migrate_to_chat_id) {
+    const oldChatId = message.chat.id;
+    const newChatId = message.migrate_to_chat_id;
+    
+    // Find any existing webhook for the old chat ID
+    const oldChat = JSON.stringify({
+      chatId: oldChatId,
+      messageThreadId: message.message_thread_id,
+    });
+    const webhookId = await TG_GROUPS.get(`chat-webhook:${oldChat}`);
+    
+    if (webhookId) {
+      // Update the stored chat info with new chat ID
+      const newChat = JSON.stringify({
+        chatId: newChatId,
+        messageThreadId: message.message_thread_id,
+      });
+      await TG_GROUPS.put(`chat-webhook:${newChat}`, webhookId);
+      await TG_GROUPS.put(`webhook-chat:${webhookId}`, newChat);
+      
+      // Delete old mapping
+      await TG_GROUPS.delete(`chat-webhook:${oldChat}`);
+    }
+    return;
+  }
+  
   if (message.text === "/webhook" || message.text === "/webhook@telerts_bot") {
     const chatId = message.chat.id;
     const chat = {
