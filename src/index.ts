@@ -129,8 +129,19 @@ router.post("/t/:webhookId/map", async (context) => {
   context.res.body = { ok: true };
 });
 
-const cors: Middleware = async ({ res }, next) => {
+const cors: Middleware = async ({ req, res }, next) => {
+  // Set CORS headers
   res.headers.set("access-control-allow-origin", "*");
+  res.headers.set("access-control-allow-methods", "GET, POST, OPTIONS");
+  res.headers.set("access-control-allow-headers", "Content-Type");
+  res.headers.set("access-control-max-age", "86400");
+
+  // Handle preflight requests
+  if (req.method === "OPTIONS") {
+    res.status = 204;
+    return;
+  }
+
   await next();
 };
 
