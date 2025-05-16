@@ -83,6 +83,33 @@ router.post("/t/:webhookId", async (context) => {
   context.res.body = { ok: true };
 });
 
+router.get("/t/:webhookId", async (context) => {
+  const chat = await TG_GROUPS.get(
+    `webhook-chat:${context.req.params.webhookId}`
+  );
+  if (chat == null) {
+    context.res.body = { ok: false, error: "chatId not found" };
+    context.res.status = 404;
+    return;
+  }
+
+  const search = context.req.url.searchParams;
+  const result: RichMessage = {
+    event: search.get("event") || "Unknown Event",
+    text: search.get("text") || undefined,
+    channel: search.get("channel") || undefined,
+    emoji: search.get("emoji") || undefined,
+    notify: search.get("notify") !== "false",
+    metadata: search.get("metadata") ? JSON.parse(search.get("metadata") || "{}") : undefined,
+  };
+
+  await sendToChat(JSON.parse(chat), formatRichMessage(result), {
+    parseMode: "HTML",
+    disableNotification: result.notify === false,
+  });
+  context.res.body = { ok: true };
+});
+
 router.post("/t/:webhookId/map", async (context) => {
   const chat = await TG_GROUPS.get(
     `webhook-chat:${context.req.params.webhookId}`
