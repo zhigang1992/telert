@@ -7,13 +7,16 @@
     "prettier": "^2.8.8",
     "typescript": "^5.0.4",
     "vitest": "^0.30.1",
-    "wrangler": "2.17.0"
+    "wrangler": "2.17.0",
+    "vitepress": "^1.0.0-rc.18"
   },
   "private": true,
   "scripts": {
     "start": "wrangler dev",
     "deploy": "wrangler publish",
-    "test": "vitest"
+    "test": "vitest",
+    "docs:dev": "vitepress dev docs",
+    "docs:build": "vitepress build docs"
   },
   "dependencies": {
     "@cfworker/web": "^1.12.5"
