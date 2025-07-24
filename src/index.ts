@@ -48,7 +48,9 @@ router.post("/t/:webhookId/raw", async (context) => {
     return;
   }
   const result = await context.req.body.text();
-  await sendToChat(JSON.parse(chat), result);
+  await sendToChat(JSON.parse(chat), result, {
+    parseMode: context.req.url.searchParams.get('parseMode') as 'HTML' | undefined,
+  });
   context.res.body = { ok: true };
 });
 
