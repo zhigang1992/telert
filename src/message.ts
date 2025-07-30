@@ -22,27 +22,19 @@ const escapeHTML = (str: string) =>
       }[tag] || tag)
   );
 
-const html = (strings: TemplateStringsArray, ...values: string[]) => {
-  return strings.map((string, index) => {
-    return string + escapeHTML(values[index] ?? "");
-  }).join("");
-};
-
 export function formatRichMessage(message: RichMessage): string {
   const metadata = Object.entries(message.metadata ?? {})
-    .map(([key, value]) => html`#${key}: ${value}`)
+    .map(([key, value]) => `#${escapeHTML(key)}: ${escapeHTML(value)}`)
     .join("\n");
-  return html`${message.emoji ? `${message.emoji} • ` : ""}${
+  return `${message.emoji ? `${escapeHTML(message.emoji)} • ` : ""}${
     message.channel
-      ? html`<ins>#${message.channel}</ins>
+      ? `<ins>#${escapeHTML(message.channel)}</ins>
 
 `
       : ""
-  }<b>${message.event}</b>${
+  }<b>${escapeHTML(message.event)}</b>${
     (message.text ?? message.message)
-      ? html`
-
-<code>${message.text ?? message.message ?? ""}</code>`
+      ? `<code>${escapeHTML(message.text ?? message.message ?? "")}</code>`
       : ""
   }
 
