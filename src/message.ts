@@ -32,7 +32,7 @@ export function formatRichMessage(message: RichMessage): string {
 
 `
       : ""
-  }<b>${escapeHTML(message.event)}</b>${
+  }<b>${escapeHTML(message.event ?? "Unknown event")}</b>${
     (message.text ?? message.message)
       ? `
 

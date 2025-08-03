@@ -19,6 +19,8 @@ declare global {
 
   const WEBHOOK_PREFIX: string;
 
+  const WEBHOOK_PASSWORD: string;
+
   const TG_GROUPS: KVNamespace;
 }
 
@@ -32,6 +34,16 @@ router.get("/", (context) => {
 });
 
 router.post("/bot", async (context) => {
+  // Check for authentication password in query parameter
+  const password = context.req.url.searchParams.get('password');
+  const expectedPassword = WEBHOOK_PASSWORD;
+  
+  if (!password || password !== expectedPassword) {
+    context.res.status = 401;
+    context.res.body = { ok: false, error: "Unauthorized" };
+    return;
+  }
+  
   const result: Update = await context.req.body.json();
   await processUpdate(result);
   console.log(JSON.stringify(result, null, 2));
