@@ -3,9 +3,14 @@ main = "src/index.ts"
 compatibility_date = "2023-05-01"
 
 kv_namespaces = [
-  { binding = "TG_GROUPS", id = "***", preview_id = "***" }
+  { binding = "TG_GROUPS", id = "0c0522002c384d9582861e78f8d006cf", preview_id = "b94bec4fff8249de894d34db46c690ce" }
 ]
 
 [vars]
-BOT_TOKEN = "***"
-WEBHOOK_PREFIX = "***"
+BOT_TOKEN = "5853191894:***************"
+WEBHOOK_PREFIX = "https://telert.reily.app"
+WEBHOOK_PASSWORD = "************"
+
+[observability.logs]
+enabled = true
+
