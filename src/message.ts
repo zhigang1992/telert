@@ -10,7 +10,7 @@ export type RichMessage = {
 
 // https://www.30secondsofcode.org/js/s/escape-unescape-html/
 const escapeHTML = (str: string) =>
-  str.replace(
+  str?.replace(
     /[&<>'"]/g,
     (tag: string) =>
       ({
@@ -20,7 +20,7 @@ const escapeHTML = (str: string) =>
         "'": '&#39;',
         '"': '&quot;'
       }[tag] || tag)
-  );
+  ) ?? "";
 
 export function formatRichMessage(message: RichMessage): string {
   const metadata = Object.entries(message.metadata ?? {})
