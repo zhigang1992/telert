@@ -24,7 +24,7 @@ const escapeHTML = (str: string) =>
 
 export function formatRichMessage(message: RichMessage): string {
   const metadata = Object.entries(message.metadata ?? {})
-    .map(([key, value]) => `#${escapeHTML(key)}: ${escapeHTML(value)}`)
+    .map(([key, value]) => `#${escapeHTML(key)}: ${escapeHTML(String(value))}`)
     .join("\n");
   return `${message.emoji ? `${escapeHTML(message.emoji)} • ` : ""}${
     message.channel
