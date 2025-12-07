@@ -186,7 +186,12 @@ const cors: Middleware = async ({ req, res }, next) => {
   await next();
 };
 
-new Application().use(cors).use(router.middleware).listen();
+const app = new Application().use(cors).use(router.middleware);
+
+export default {
+  fetch: (request: Request, env: any, ctx: ExecutionContext) =>
+    app.handleRequest(request, env, ctx),
+};
 
 async function processUpdate(update: Update): Promise<void> {
   const message = update.message ?? update.channel_post;

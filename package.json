@@ -2,12 +2,12 @@
   "name": "telert",
   "version": "0.0.0",
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20230404.0",
-    "@grammyjs/types": "^3.1.1",
-    "prettier": "^2.8.8",
-    "typescript": "^5.0.4",
-    "vitest": "^0.30.1",
-    "wrangler": "4.26.1"
+    "@cloudflare/workers-types": "^4.20251205.0",
+    "@grammyjs/types": "^3.22.2",
+    "prettier": "^3.7.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.15",
+    "wrangler": "4.53.0"
   },
   "private": true,
   "scripts": {
@@ -16,6 +16,6 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@cfworker/web": "^1.12.5"
+    "@cfworker/web": "^5.1.0"
   }
 }
