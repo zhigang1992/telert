@@ -14,14 +14,11 @@ import { get } from "./get";
 // @ts-ignore
 import indexHtml from './index.html';
 
-declare global {
-  const BOT_TOKEN: string;
-
-  const WEBHOOK_PREFIX: string;
-
-  const WEBHOOK_PASSWORD: string;
-
-  const TG_GROUPS: KVNamespace;
+interface Env {
+  BOT_TOKEN: string;
+  WEBHOOK_PREFIX: string;
+  WEBHOOK_PASSWORD: string;
+  TG_GROUPS: KVNamespace;
 }
 
 // Your code here, but do not `bot.launch()`
@@ -34,24 +31,25 @@ router.get("/", (context) => {
 });
 
 router.post("/bot", async (context) => {
+  const env = context.environmentBindings as Env;
   // Check for authentication password in query parameter
   const password = context.req.url.searchParams.get('password');
-  const expectedPassword = WEBHOOK_PASSWORD;
-  
-  if (!password || password !== expectedPassword) {
+
+  if (!password || password !== env.WEBHOOK_PASSWORD) {
     context.res.status = 401;
     context.res.body = { ok: false, error: "Unauthorized" };
     return;
   }
-  
+
   const result: Update = await context.req.body.json();
-  await processUpdate(result);
+  await processUpdate(result, env);
   console.log(JSON.stringify(result, null, 2));
   context.res.body = { ok: true };
 });
 
 router.post("/t/:webhookId/raw", async (context) => {
-  const chat = await TG_GROUPS.get(
+  const env = context.environmentBindings as Env;
+  const chat = await env.TG_GROUPS.get(
     `webhook-chat:${context.req.params.webhookId}`
   );
   if (chat == null) {
@@ -60,14 +58,15 @@ router.post("/t/:webhookId/raw", async (context) => {
     return;
   }
   const result = await context.req.body.text();
-  await sendToChat(JSON.parse(chat), result, {
+  await sendToChat(env, JSON.parse(chat), result, {
     parseMode: context.req.url.searchParams.get('parseMode') as 'HTML' | undefined,
   });
   context.res.body = { ok: true };
 });
 
 router.post("/t/:webhookId/file", async (context) => {
-  const chat = await TG_GROUPS.get(
+  const env = context.environmentBindings as Env;
+  const chat = await env.TG_GROUPS.get(
     `webhook-chat:${context.req.params.webhookId}`
   );
   if (chat == null) {
@@ -76,12 +75,13 @@ router.post("/t/:webhookId/file", async (context) => {
     return;
   }
   const result = await context.req.body.json();
-  await uploadFileToChat(JSON.parse(chat), result.fileName, result.content);
+  await uploadFileToChat(env, JSON.parse(chat), result.fileName, result.content);
   context.res.body = { ok: true };
 });
 
 router.post("/t/:webhookId", async (context) => {
-  const chat = await TG_GROUPS.get(
+  const env = context.environmentBindings as Env;
+  const chat = await env.TG_GROUPS.get(
     `webhook-chat:${context.req.params.webhookId}`
   );
   if (chat == null) {
@@ -90,7 +90,7 @@ router.post("/t/:webhookId", async (context) => {
     return;
   }
   const result: RichMessage = await context.req.body.json();
-  await sendToChat(JSON.parse(chat), formatRichMessage(result), {
+  await sendToChat(env, JSON.parse(chat), formatRichMessage(result), {
     parseMode: "HTML",
     disableNotification: result.notify === false,
   });
@@ -98,7 +98,8 @@ router.post("/t/:webhookId", async (context) => {
 });
 
 router.get("/t/:webhookId", async (context) => {
-  const chat = await TG_GROUPS.get(
+  const env = context.environmentBindings as Env;
+  const chat = await env.TG_GROUPS.get(
     `webhook-chat:${context.req.params.webhookId}`
   );
   if (chat == null) {
@@ -117,7 +118,7 @@ router.get("/t/:webhookId", async (context) => {
     metadata: search.get("metadata") ? JSON.parse(search.get("metadata") || "{}") : undefined,
   };
 
-  await sendToChat(JSON.parse(chat), formatRichMessage(result), {
+  await sendToChat(env, JSON.parse(chat), formatRichMessage(result), {
     parseMode: "HTML",
     disableNotification: result.notify === false,
   });
@@ -125,7 +126,8 @@ router.get("/t/:webhookId", async (context) => {
 });
 
 router.post("/t/:webhookId/map", async (context) => {
-  const chat = await TG_GROUPS.get(
+  const env = context.environmentBindings as Env;
+  const chat = await env.TG_GROUPS.get(
     `webhook-chat:${context.req.params.webhookId}`
   );
   if (chat == null) {
@@ -163,7 +165,7 @@ router.post("/t/:webhookId/map", async (context) => {
               ])
           ),
   };
-  await sendToChat(JSON.parse(chat), formatRichMessage(result), {
+  await sendToChat(env, JSON.parse(chat), formatRichMessage(result), {
     parseMode: "HTML",
     disableNotification: result.notify === false,
   });
@@ -193,39 +195,39 @@ export default {
     app.handleRequest(request, env, ctx),
 };
 
-async function processUpdate(update: Update): Promise<void> {
+async function processUpdate(update: Update, env: Env): Promise<void> {
   const message = update.message ?? update.channel_post;
   if (message == null) {
     return;
   }
-  
+
   // Handle migration to supergroup
   if (message.migrate_to_chat_id) {
     const oldChatId = message.chat.id;
     const newChatId = message.migrate_to_chat_id;
-    
+
     // Find any existing webhook for the old chat ID
     const oldChat = JSON.stringify({
       chatId: oldChatId,
       messageThreadId: message.message_thread_id,
     });
-    const webhookId = await TG_GROUPS.get(`chat-webhook:${oldChat}`);
-    
+    const webhookId = await env.TG_GROUPS.get(`chat-webhook:${oldChat}`);
+
     if (webhookId) {
       // Update the stored chat info with new chat ID
       const newChat = JSON.stringify({
         chatId: newChatId,
         messageThreadId: message.message_thread_id,
       });
-      await TG_GROUPS.put(`chat-webhook:${newChat}`, webhookId);
-      await TG_GROUPS.put(`webhook-chat:${webhookId}`, newChat);
-      
+      await env.TG_GROUPS.put(`chat-webhook:${newChat}`, webhookId);
+      await env.TG_GROUPS.put(`webhook-chat:${webhookId}`, newChat);
+
       // Delete old mapping
-      await TG_GROUPS.delete(`chat-webhook:${oldChat}`);
+      await env.TG_GROUPS.delete(`chat-webhook:${oldChat}`);
     }
     return;
   }
-  
+
   if (message.text === "/webhook" || message.text === "/webhook@telerts_bot") {
     const chatId = message.chat.id;
     const chat = {
@@ -234,18 +236,19 @@ async function processUpdate(update: Update): Promise<void> {
     };
     const chatKey = JSON.stringify(chat);
     const key = `chat-webhook:${chatKey}`;
-    const result = await TG_GROUPS.get(key);
+    const result = await env.TG_GROUPS.get(key);
     let webhookUrl: string;
     if (result == null) {
       const uuid = crypto.randomUUID();
-      await TG_GROUPS.put(key, uuid);
-      await TG_GROUPS.put(`webhook-chat:${uuid}`, chatKey);
-      webhookUrl = `${WEBHOOK_PREFIX}/t/${uuid}`;
+      await env.TG_GROUPS.put(key, uuid);
+      await env.TG_GROUPS.put(`webhook-chat:${uuid}`, chatKey);
+      webhookUrl = `${env.WEBHOOK_PREFIX}/t/${uuid}`;
     } else {
-      await TG_GROUPS.put(`webhook-chat:${result}`, chatKey);
-      webhookUrl = `${WEBHOOK_PREFIX}/t/${result}`;
+      await env.TG_GROUPS.put(`webhook-chat:${result}`, chatKey);
+      webhookUrl = `${env.WEBHOOK_PREFIX}/t/${result}`;
     }
     await sendToChat(
+      env,
       chat,
       `<code>${webhookUrl}</code>
 
@@ -262,7 +265,7 @@ async function processUpdate(update: Update): Promise<void> {
 }
 </code>
 
-* Only event is required 
+* Only event is required
 `,
       {
         parseMode: "HTML",
@@ -272,6 +275,7 @@ async function processUpdate(update: Update): Promise<void> {
 }
 
 async function sendToChat(
+  env: Env,
   chat: {
     chatId: number;
     messageThreadId?: number;
@@ -282,7 +286,7 @@ async function sendToChat(
     disableNotification?: boolean;
   }
 ): Promise<void> {
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+  await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -298,6 +302,7 @@ async function sendToChat(
 }
 
 async function uploadFileToChat(
+  env: Env,
   chat: {
     chatId: number;
     messageThreadId?: number;
@@ -305,7 +310,7 @@ async function uploadFileToChat(
   fileName: string,
   content: string
 ) {
-  await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`, {
+  await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendDocument`, {
     method: "POST",
     headers: {
       "Content-Type": "multipart/form-data; boundary=WebAppBoundary",
