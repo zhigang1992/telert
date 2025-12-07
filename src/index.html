@@ -4,43 +4,394 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Telert - Telegram Notifications Made Easy</title>
+    <meta name="description" content="The simplest way to send rich notifications, files, and alerts from your code directly to Telegram chats via Webhook.">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script type="importmap">
+    {
+        "imports": {
+            "react": "https://esm.sh/react@19.1.0",
+            "react-dom/client": "https://esm.sh/react-dom@19.1.0/client",
+            "lucide-react": "https://esm.sh/lucide-react@0.468.0?deps=react@19.1.0"
+        }
+    }
+    </script>
+    <script type="module" src="https://esm.sh/tsx"></script>
+    <style>
+        /* Smooth scrolling */
+        html { scroll-behavior: smooth; }
+        /* Selection color */
+        ::selection { background: rgba(59, 130, 246, 0.3); }
+    </style>
 </head>
-<body class="bg-gray-100 text-gray-800 font-sans">
-    <div class="container mx-auto px-4 py-8">
-        <header class="text-center mb-12">
-            <h1 class="text-4xl font-bold text-indigo-600 mb-2">Telert</h1>
-            <p class="text-xl text-gray-600">Telegram Notifications Made Easy</p>
-        </header>
-        
-        <main class="max-w-3xl mx-auto">
-            <section class="bg-white rounded-lg shadow-md p-6 mb-8">
-                <h2 class="text-2xl font-semibold mb-4">What is Telert?</h2>
-                <p class="mb-4">Telert is a simple and powerful tool that allows you to send notifications to your Telegram chats using webhooks. It's perfect for developers, teams, and anyone who wants to stay updated on important events.</p>
-                <a href="https://t.me/telerts_bot" class="inline-block bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors">Start Using Telert Bot</a>
-            </section>
-            
-            <section class="bg-white rounded-lg shadow-md p-6 mb-8">
-                <h2 class="text-2xl font-semibold mb-4">Features</h2>
-                <ul class="list-disc list-inside space-y-2">
-                    <li>Easy setup with Telegram bot</li>
-                    <li>Customizable notifications</li>
-                    <li>Support for rich messages with emojis</li>
-                    <li>File upload capabilities</li>
-                    <li>Flexible webhook URLs</li>
-                </ul>
-            </section>
-            
-            <section class="bg-white rounded-lg shadow-md p-6">
-                <h2 class="text-2xl font-semibold mb-4">How to Use</h2>
-                <ol class="list-decimal list-inside space-y-2">
-                    <li>Add the Telert bot to your Telegram chat</li>
-                    <li>Use the /webhook command to get your unique webhook URL</li>
-                    <li>Send POST requests to the webhook URL with your notification data</li>
-                    <li>Receive notifications in your Telegram chat</li>
-                </ol>
-            </section>
-        </main>
+<body class="bg-[#0F172A]">
+    <div id="root"></div>
+
+    <script type="text/tsx">
+import React, { useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import {
+  Zap,
+  MessageSquare,
+  FileText,
+  Repeat,
+  Shield,
+  Copy,
+  Check,
+  Bot,
+  ArrowRight,
+  Menu,
+  X,
+  Smartphone,
+  Globe
+} from 'lucide-react';
+
+const TelertLanding = () => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('rich');
+  const [copied, setCopied] = useState(false);
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const steps = [
+    {
+      num: "01",
+      title: "Add the Bot",
+      desc: "Search for @telerts_bot in Telegram and add it to your chat or group.",
+      icon: <Bot className="w-6 h-6 text-blue-400" />
+    },
+    {
+      num: "02",
+      title: "Get Webhook",
+      desc: "Send the command /webhook. You'll receive your unique secure URL.",
+      icon: <Globe className="w-6 h-6 text-purple-400" />
+    },
+    {
+      num: "03",
+      title: "Send Data",
+      desc: "POST JSON data to your URL. It appears instantly in your chat.",
+      icon: <Zap className="w-6 h-6 text-yellow-400" />
+    }
+  ];
+
+  const features = [
+    {
+      icon: <Repeat className="w-6 h-6 text-emerald-400" />,
+      title: "JSON Mapping",
+      description: "Transform incoming webhooks from GitHub, Stripe, or Jira using $json.path syntax without writing glue code."
+    },
+    {
+      icon: <MessageSquare className="w-6 h-6 text-blue-400" />,
+      title: "Rich Formatting",
+      description: "Send structured data with titles, emojis, and key-value metadata tables that render beautifully in Telegram."
+    },
+    {
+      icon: <FileText className="w-6 h-6 text-purple-400" />,
+      title: "File Uploads",
+      description: "Need to send a log file or report? Upload files directly to the chat via the /file endpoint."
+    },
+    {
+      icon: <Shield className="w-6 h-6 text-orange-400" />,
+      title: "Thread Support",
+      description: "Full support for Telegram Topics. Webhooks survive group-to-supergroup migrations automatically."
+    }
+  ];
+
+  const endpoints: Record<string, { title: string; method: string; url: string; desc: string; code: string }> = {
+    rich: {
+      title: "Rich Message",
+      method: "POST",
+      url: "/t/{webhookId}",
+      desc: "Send formatted notifications with metadata tables.",
+      code: `curl -X POST https://telert.reily.app/t/{webhookId} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "event": "New User Registered",
+    "channel": "WebApp",
+    "emoji": "👋",
+    "text": "A new user just signed up!",
+    "metadata": {
+      "email": "user@example.com",
+      "plan": "Pro"
+    },
+    "notify": true
+  }'`
+    },
+    get: {
+      title: "Simple GET",
+      method: "GET",
+      url: "/t/{webhookId}",
+      desc: "Trigger alerts via simple URL parameters. Great for simple scripts.",
+      code: `curl "https://telert.reily.app/t/{webhookId}?event=Deploy&text=v1.2+Live&emoji=🚀"`
+    },
+    map: {
+      title: "JSON Mapping",
+      method: "POST",
+      url: "/t/{webhookId}/map",
+      desc: "Extract values from 3rd party webhooks using JSON path syntax.",
+      code: `curl -X POST "https://telert.reily.app/t/{webhookId}/map?event=\\$json.action&text=\\$json.repo.name" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "action": "push",
+    "repo": { "name": "backend-api" }
+  }'`
+    },
+    file: {
+      title: "File Upload",
+      method: "POST",
+      url: "/t/{webhookId}/file",
+      desc: "Upload text files or logs directly to the chat.",
+      code: `curl -X POST https://telert.reily.app/t/{webhookId}/file \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "fileName": "error.log",
+    "content": "Stack trace details..."
+  }'`
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-[#0F172A] text-slate-100 font-sans selection:bg-blue-500/30">
+
+      {/* Navigation */}
+      <nav className="fixed w-full z-50 bg-[#0F172A]/80 backdrop-blur-md border-b border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center gap-2">
+              <div className="bg-blue-600 p-1.5 rounded-lg">
+                <Smartphone className="w-5 h-5 text-white" />
+              </div>
+              <span className="font-bold text-xl tracking-tight text-white">Telert</span>
+            </div>
+
+            <div className="hidden md:block">
+              <div className="ml-10 flex items-baseline space-x-8">
+                <a href="#how-it-works" className="hover:text-blue-400 transition-colors px-3 py-2 rounded-md text-sm font-medium">How it Works</a>
+                <a href="#api" className="hover:text-blue-400 transition-colors px-3 py-2 rounded-md text-sm font-medium">API Reference</a>
+                <a href="#features" className="hover:text-blue-400 transition-colors px-3 py-2 rounded-md text-sm font-medium">Features</a>
+                <a href="https://t.me/telerts_bot" target="_blank" rel="noreferrer" className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all shadow-[0_0_15px_rgba(37,99,235,0.4)] hover:shadow-[0_0_25px_rgba(37,99,235,0.6)]">
+                  Start Bot
+                </a>
+              </div>
+            </div>
+
+            <div className="-mr-2 flex md:hidden">
+              <button
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 focus:outline-none"
+              >
+                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile menu */}
+        {isMenuOpen && (
+          <div className="md:hidden bg-[#0F172A] border-t border-slate-800">
+            <div className="px-2 pt-2 pb-3 space-y-1">
+              <a href="#how-it-works" className="block px-3 py-2 text-base font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-md">How it Works</a>
+              <a href="#api" className="block px-3 py-2 text-base font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-md">API Reference</a>
+              <a href="#features" className="block px-3 py-2 text-base font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-md">Features</a>
+              <a href="https://t.me/telerts_bot" target="_blank" rel="noreferrer" className="block px-3 py-2 text-base font-medium text-blue-400 hover:text-blue-300">Start Bot</a>
+            </div>
+          </div>
+        )}
+      </nav>
+
+      {/* Hero Section */}
+      <div className="relative pt-32 pb-20 sm:pt-40 sm:pb-24 overflow-hidden">
+        {/* Background Gradients */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full z-0 pointer-events-none">
+            <div className="absolute top-10 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px]"></div>
+            <div className="absolute bottom-10 right-1/4 w-80 h-80 bg-purple-600/10 rounded-full blur-[100px]"></div>
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm mb-8 font-medium">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+            </span>
+            Now supporting JSON Mapping
+          </div>
+
+          <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight mb-8 text-white">
+            Your App's Voice in <br className="hidden sm:block" />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Telegram.</span>
+          </h1>
+
+          <p className="mt-4 max-w-2xl mx-auto text-xl text-slate-400 leading-relaxed">
+            The simplest way to send rich notifications, files, and alerts from your code directly to Telegram chats via Webhook.
+          </p>
+
+          <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
+            <a href="https://t.me/telerts_bot" className="inline-flex items-center justify-center px-8 py-3.5 border border-transparent text-base font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-500 md:text-lg transition-all shadow-[0_0_20px_rgba(37,99,235,0.3)]">
+              <Bot className="w-5 h-5 mr-2" /> Add @telerts_bot
+            </a>
+            <a href="#api" className="inline-flex items-center justify-center px-8 py-3.5 border border-slate-700 text-base font-medium rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800 hover:text-white md:text-lg transition-colors">
+              View API Docs
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Steps Section */}
+      <div id="how-it-works" className="py-20 bg-slate-900/50 border-y border-slate-800">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
+                {steps.map((step, idx) => (
+                    <div key={idx} className="relative flex flex-col items-center text-center group">
+                        <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg group-hover:border-blue-500/50">
+                            {step.icon}
+                        </div>
+                        <div className="absolute -top-4 -right-4 text-6xl font-black text-slate-800/50 -z-10 select-none font-mono">
+                            {step.num}
+                        </div>
+                        <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
+                        <p className="text-slate-400">{step.desc}</p>
+                        {idx !== steps.length - 1 && (
+                             <div className="hidden md:block absolute top-8 -right-6 w-12 text-slate-700">
+                                <ArrowRight />
+                             </div>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </div>
+      </div>
+
+      {/* Interactive API Section */}
+      <div id="api" className="py-24 relative">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center mb-12">
+                <h2 className="text-3xl font-bold text-white sm:text-4xl">Developer-First API</h2>
+                <p className="mt-4 text-slate-400">One URL, infinite possibilities.</p>
+            </div>
+
+            <div className="bg-[#1E293B] rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col lg:flex-row">
+                {/* Tabs Sidebar */}
+                <div className="lg:w-1/4 border-b lg:border-b-0 lg:border-r border-slate-700 bg-slate-900/50">
+                    <div className="p-4 font-mono text-xs font-bold text-slate-500 uppercase tracking-wider">Endpoints</div>
+                    {Object.keys(endpoints).map((key) => (
+                        <button
+                            key={key}
+                            onClick={() => setActiveTab(key)}
+                            className={`w-full text-left px-6 py-4 text-sm font-medium transition-colors flex items-center justify-between
+                                ${activeTab === key
+                                    ? 'bg-blue-600/10 text-blue-400 border-l-2 border-blue-500'
+                                    : 'text-slate-400 hover:bg-slate-800 hover:text-white border-l-2 border-transparent'
+                                }`}
+                        >
+                            <span>{endpoints[key].title}</span>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${endpoints[key].method === 'GET' ? 'bg-green-900/50 text-green-400' : 'bg-yellow-900/50 text-yellow-400'}`}>
+                                {endpoints[key].method}
+                            </span>
+                        </button>
+                    ))}
+                </div>
+
+                {/* Content Area */}
+                <div className="lg:w-3/4 p-6 sm:p-8 flex flex-col">
+                    <div className="flex items-center gap-3 mb-4">
+                        <span className={`font-mono text-sm px-2 py-1 rounded ${endpoints[activeTab].method === 'GET' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                            {endpoints[activeTab].method}
+                        </span>
+                        <code className="text-slate-300 font-mono text-sm sm:text-base bg-slate-950 px-3 py-1 rounded border border-slate-800">
+                            {endpoints[activeTab].url}
+                        </code>
+                    </div>
+
+                    <p className="text-slate-400 mb-6 text-sm">{endpoints[activeTab].desc}</p>
+
+                    <div className="relative group flex-grow">
+                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={() => copyToClipboard(endpoints[activeTab].code)}
+                                className="p-2 bg-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-600 transition-colors"
+                            >
+                                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+                            </button>
+                        </div>
+                        <pre className="bg-[#0B1120] p-6 rounded-lg text-sm font-mono text-slate-300 overflow-x-auto border border-slate-800 shadow-inner h-full">
+                            {endpoints[activeTab].code}
+                        </pre>
+                    </div>
+
+                    {activeTab === 'rich' && (
+                        <div className="mt-8 pt-8 border-t border-slate-700">
+                             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Preview in Telegram</div>
+                             {/* Telegram Message Preview Mockup */}
+                             <div className="bg-[#182533] p-4 rounded-lg max-w-sm border border-slate-800 shadow-lg">
+                                 <div className="flex items-center gap-2 mb-2">
+                                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">Bot</div>
+                                    <div>
+                                        <div className="text-white font-semibold text-sm">Telert Bot</div>
+                                        <div className="text-[#64798b] text-xs">bot</div>
+                                    </div>
+                                 </div>
+                                 <div className="text-white text-sm space-y-2">
+                                     <div className="font-bold text-blue-400">👋 • #WebApp</div>
+                                     <div className="font-bold">New User Registered</div>
+                                     <div>A new user just signed up!</div>
+                                     <div className="mt-2 pt-2 border-t border-slate-700/50 text-xs font-mono text-slate-400 space-y-1">
+                                         <div className="flex justify-between"><span>#email:</span> <span className="text-slate-200">user@example.com</span></div>
+                                         <div className="flex justify-between"><span>#plan:</span> <span className="text-slate-200">Pro</span></div>
+                                     </div>
+                                 </div>
+                             </div>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+      </div>
+
+      {/* Features Grid */}
+      <div id="features" className="py-24 bg-slate-900 relative">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
+                {features.map((feature, idx) => (
+                <div key={idx} className="bg-slate-800/50 p-8 rounded-2xl border border-slate-800 hover:border-blue-500/30 transition-all hover:bg-slate-800 group">
+                    <div className="flex items-start gap-4">
+                        <div className="bg-slate-900 p-3 rounded-lg group-hover:scale-110 transition-transform shrink-0">
+                            {feature.icon}
+                        </div>
+                        <div>
+                            <h3 className="text-xl font-bold text-white mb-2">{feature.title}</h3>
+                            <p className="text-slate-400 leading-relaxed">{feature.description}</p>
+                        </div>
+                    </div>
+                </div>
+                ))}
+            </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="bg-[#0F172A] border-t border-slate-800 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
+            <div className="flex items-center gap-2 mb-4 md:mb-0">
+                <div className="bg-blue-600/20 p-1.5 rounded-lg">
+                    <Smartphone className="w-4 h-4 text-blue-400" />
+                </div>
+                <span className="font-semibold text-slate-300">Telert</span>
+            </div>
+            <div className="text-slate-500 text-sm text-center md:text-right">
+                Built for Developers.
+            </div>
+        </div>
+      </footer>
     </div>
+  );
+};
+
+// Mount the app
+const root = createRoot(document.getElementById('root')!);
+root.render(<TelertLanding />);
+    </script>
 </body>
 </html>
