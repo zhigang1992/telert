@@ -66,7 +66,7 @@ router.post("/t/:webhookId/raw", async (context) => {
   const result = await context.req.body.text();
   const search = context.req.url.searchParams;
   await sendToChat(env, JSON.parse(chat), result, {
-    parseMode: search.get('parseMode') as 'HTML' | undefined,
+    parseMode: (search.get('parseMode') ?? undefined) as 'HTML' | undefined,
     disableLinkPreview: ["1", "true"].includes(search.get('disablePreview') ?? ""),
     disableNotification: search.get('notify') === "false",
   });
