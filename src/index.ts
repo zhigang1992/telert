@@ -58,8 +58,11 @@ router.post("/t/:webhookId/raw", async (context) => {
     return;
   }
   const result = await context.req.body.text();
+  const search = context.req.url.searchParams;
   await sendToChat(env, JSON.parse(chat), result, {
-    parseMode: context.req.url.searchParams.get('parseMode') as 'HTML' | undefined,
+    parseMode: search.get('parseMode') as 'HTML' | undefined,
+    disableLinkPreview: ["1", "true"].includes(search.get('disablePreview') ?? ""),
+    disableNotification: search.get('notify') === "false",
   });
   context.res.body = { ok: true };
 });
@@ -284,6 +287,7 @@ async function sendToChat(
   options?: {
     parseMode?: "HTML";
     disableNotification?: boolean;
+    disableLinkPreview?: boolean;
   }
 ): Promise<void> {
   await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
@@ -297,6 +301,9 @@ async function sendToChat(
       text,
       parse_mode: options?.parseMode,
       disable_notification: options?.disableNotification,
+      link_preview_options: options?.disableLinkPreview
+        ? { is_disabled: true }
+        : undefined,
     }),
   });
 }
