@@ -82,6 +82,75 @@ router.post("/t/:webhookId/file", async (context) => {
   context.res.body = { ok: true };
 });
 
+router.post("/t/:webhookId/photo", async (context) => {
+  const env = context.environmentBindings as Env;
+  const chat = await env.TG_GROUPS.get(
+    `webhook-chat:${context.req.params.webhookId}`
+  );
+  if (chat == null) {
+    context.res.body = { ok: false, error: "chatId not found" };
+    context.res.status = 404;
+    return;
+  }
+
+  // Either multipart/form-data (photo = file, or a URL string) or JSON ({ photo: url, ...message fields }).
+  const isForm = (context.req.headers.get("content-type") ?? "").includes(
+    "multipart/form-data"
+  );
+  const fields: Record<string, unknown> = {};
+  let photo: string | Blob | undefined;
+  if (isForm) {
+    const form = await context.req.body.formData();
+    form.forEach((value, key) => {
+      fields[key] = value;
+    });
+    photo = fields.photo as string | Blob | undefined;
+  } else {
+    Object.assign(fields, await context.req.body.json().catch(() => ({})));
+    photo = fields.photo as string | undefined;
+  }
+  if (photo == null || photo === "") {
+    context.res.status = 400;
+    context.res.body = {
+      ok: false,
+      error: "photo is required (a file upload or an http(s) URL)",
+    };
+    return;
+  }
+
+  const str = (key: string) =>
+    typeof fields[key] === "string" ? (fields[key] as string) : undefined;
+  const bool = (key: string) => ["1", "true"].includes(String(fields[key]));
+  let metadata: Record<string, string> | undefined;
+  try {
+    const raw = fields.metadata;
+    metadata = typeof raw === "string" ? JSON.parse(raw) : (raw as any);
+  } catch {
+    context.res.status = 400;
+    context.res.body = { ok: false, error: "metadata must be valid JSON" };
+    return;
+  }
+  const message: RichMessage = {
+    event: str("event") ?? "",
+    text: str("text"),
+    channel: str("channel"),
+    emoji: str("emoji"),
+    metadata,
+    notify: String(fields.notify) !== "false",
+    plain: bool("plain"),
+  };
+  const hasMessage = Boolean(message.event || message.text);
+  if (!message.event && !message.plain) {
+    message.event = "Photo";
+  }
+  const caption = hasMessage ? formatRichMessage(message) : undefined;
+  const result = await sendPhotoToChat(env, JSON.parse(chat), photo, caption, {
+    disableNotification: message.notify === false,
+  });
+  context.res.status = result.ok ? 200 : 502;
+  context.res.body = result;
+});
+
 router.post("/t/:webhookId", async (context) => {
   const env = context.environmentBindings as Env;
   const chat = await env.TG_GROUPS.get(
@@ -343,4 +412,53 @@ Content-Type: application/octet-stream
 ${content}
 --WebAppBoundary--`.replace(/\n/g, "\r\n"),
   }).then((a) => a.json());
+}
+
+// Telegram caption limit is 1024 characters (after entity parsing). Longer
+// captions are sent as a separate message right after the photo.
+const CAPTION_LIMIT = 1024;
+
+async function sendPhotoToChat(
+  env: Env,
+  chat: {
+    chatId: number;
+    messageThreadId?: number;
+  },
+  photo: string | Blob,
+  caption?: string,
+  options?: { disableNotification?: boolean }
+): Promise<{ ok: boolean; error?: string }> {
+  const longCaption = caption != null && caption.length > CAPTION_LIMIT;
+  const form = new FormData();
+  form.set("chat_id", String(chat.chatId));
+  if (chat.messageThreadId != null) {
+    form.set("message_thread_id", String(chat.messageThreadId));
+  }
+  if (typeof photo === "string") {
+    form.set("photo", photo);
+  } else {
+    form.set("photo", photo, (photo as File).name || "photo");
+  }
+  if (caption && !longCaption) {
+    form.set("caption", caption);
+    form.set("parse_mode", "HTML");
+  }
+  if (options?.disableNotification) {
+    form.set("disable_notification", "true");
+  }
+  const response = await fetch(
+    `https://api.telegram.org/bot${env.BOT_TOKEN}/sendPhoto`,
+    { method: "POST", body: form }
+  );
+  const body: any = await response.json().catch(() => ({}));
+  if (!response.ok || !body.ok) {
+    return { ok: false, error: body.description ?? `Telegram error ${response.status}` };
+  }
+  if (caption && longCaption) {
+    await sendToChat(env, chat, caption, {
+      parseMode: "HTML",
+      disableNotification: options?.disableNotification,
+    });
+  }
+  return { ok: true };
 }

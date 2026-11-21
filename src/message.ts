@@ -6,6 +6,8 @@ export type RichMessage = {
   emoji?: string;
   metadata?: Record<string, string>;
   notify?: boolean;
+  /** Plain layout: bold title + text as normal paragraph text. No emoji, #channel or metadata lines. */
+  plain?: boolean;
 };
 
 // https://www.30secondsofcode.org/js/s/escape-unescape-html/
@@ -23,6 +25,11 @@ const escapeHTML = (str: string) =>
   ) ?? "";
 
 export function formatRichMessage(message: RichMessage): string {
+  if (message.plain) {
+    const body = message.text ?? message.message;
+    const title = message.event ? `<b>${escapeHTML(message.event)}</b>` : "";
+    return [title, body ? escapeHTML(body) : ""].filter(Boolean).join("\n\n");
+  }
   const metadata = Object.entries(message.metadata ?? {})
     .map(([key, value]) => `#${escapeHTML(key)}: ${escapeHTML(String(value))}`)
     .join("\n");
