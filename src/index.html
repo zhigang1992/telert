@@ -150,6 +150,17 @@ const TelertLanding = () => {
     "fileName": "error.log",
     "content": "Stack trace details..."
   }'`
+    },
+    photo: {
+      title: "Send Photo",
+      method: "POST",
+      url: "/t/{webhookId}/photo",
+      desc: "Upload an image (or pass an image URL) with an optional caption. Use plain=true for just a bold title and text.",
+      code: `curl -X POST https://telert.reily.app/t/{webhookId}/photo \\
+  -F photo=@./image.jpg \\
+  -F event="Boon" \\
+  -F text="Message text" \\
+  -F plain=true`
     }
   };
 
