@@ -234,10 +234,10 @@ const endpoints: Endpoint[] = [
     desc: 'Upload an image, or pass an image URL, with an optional caption. The caption takes the same fields as a rich message, including plain.',
     code: `curl -X POST ${ORIGIN}/t/{webhookId}/photo \\
   -F photo=@./image.jpg \\
-  -F event="Boon" \\
+  -F event="John Appleseed" \\
   -F text="Message text" \\
   -F plain=true`,
-    preview: <PhotoBubble message={{ event: 'Boon', text: 'Message text', plain: true }} />,
+    preview: <PhotoBubble message={{ event: 'John Appleseed', text: 'Message text', plain: true }} />,
   },
 ];
 

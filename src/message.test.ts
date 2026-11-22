@@ -5,28 +5,28 @@ describe("formatRichMessage", () => {
   it("keeps the default layout", () => {
     expect(
       formatRichMessage({
-        event: "Boon",
+        event: "John Appleseed",
         text: "hi",
         channel: "WhatsApp",
         emoji: "💬",
         metadata: { contact: "A" },
       })
     ).toBe(
-      "💬 • <ins>#WhatsApp</ins>\n\n<b>Boon</b>\n\n<code>hi</code>\n\n#contact: A"
+      "💬 • <ins>#WhatsApp</ins>\n\n<b>John Appleseed</b>\n\n<code>hi</code>\n\n#contact: A"
     );
   });
 
   it("plain renders only a bold title and the text", () => {
     expect(
       formatRichMessage({
-        event: "Boon",
+        event: "John Appleseed",
         text: "a < b",
         channel: "WhatsApp",
         emoji: "💬",
         metadata: { contact: "A" },
         plain: true,
       })
-    ).toBe("<b>Boon</b>\n\na &lt; b");
+    ).toBe("<b>John Appleseed</b>\n\na &lt; b");
   });
 
   it("plain without a title is just the text", () => {

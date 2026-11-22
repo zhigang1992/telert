@@ -113,7 +113,7 @@ Errors: 400 if photo is missing or metadata is not valid JSON; 502 with {"ok": f
 
     curl -X POST https://telert.reily.app/t/<webhook-id>/photo \\
       -F photo=@./image.jpg \\
-      -F event="Boon" \\
+      -F event="John Appleseed" \\
       -F text="Message text" \\
       -F plain=true
 
