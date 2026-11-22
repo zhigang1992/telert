@@ -50,12 +50,24 @@ export function formatRichMessage(message: RichMessage): string {
 ${metadata}`;
 }
 
-export function webhookReply(prefix: string, webhookId: string): string {
+export function webhookReply(prefix: string, webhookId: string) {
   const webhookUrl = `${prefix}/t/${webhookId}`;
-  return `Your webhook URL:
-<code>${webhookUrl}</code>
-
-Send JSON with an <code>event</code>, or photos to <code>${webhookUrl}/photo</code>. Add <code>"plain": true</code> for a bold title with normal text.
-
-Docs with examples filled in for this group: ${prefix}/#id=${webhookId}&amp;api-rich`;
+  return {
+    text: `<pre>${webhookUrl}</pre>`,
+    replyMarkup: {
+      inline_keyboard: [
+        [
+          {
+            text: "Copy URL",
+            copy_text: { text: webhookUrl },
+            style: "primary",
+          },
+          {
+            text: "Docs",
+            url: `${prefix}/#id=${webhookId}&api-rich`,
+          },
+        ],
+      ],
+    },
+  };
 }
