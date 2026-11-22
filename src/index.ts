@@ -11,6 +11,7 @@ import { Application, type Middleware, Router } from "@cfworker/web";
 import type { Update } from "@grammyjs/types";
 import { formatRichMessage, webhookReply, type RichMessage } from "./message";
 import { get } from "./get";
+import { llmsTxt } from "./llms";
 // @ts-ignore
 import indexHtml from './index.html';
 
@@ -28,6 +29,11 @@ const router = new Router();
 router.get("/", (context) => {
   context.res.headers.set("Content-Type", "text/html");
   context.res.body = indexHtml;
+});
+
+router.get("/llms.txt", (context) => {
+  context.res.headers.set("Content-Type", "text/plain; charset=utf-8");
+  context.res.body = llmsTxt;
 });
 
 router.post("/bot", async (context) => {
