@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { createRoot } from 'react-dom/client';
 
 // Webhook id and section live only in the URL hash (never sent to the server):
-//   #id=<uuid>&api-photo  |  #id=<uuid>  |  #api-photo  |  #features
+//   #id=<uuid>&api-photo  |  #id=<uuid>  |  #api-photo  |  #api
 const ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ORIGIN = 'https://telert.reily.app';
+const BOT_URL = 'https://t.me/telerts_bot';
 
 const parseHash = (hash: string) => {
   let id: string | undefined;
@@ -20,113 +23,133 @@ const parseHash = (hash: string) => {
 
 const buildHash = (id: string | undefined, section: string) =>
   '#' + [id ? `id=${id}` : '', section].filter(Boolean).join('&');
-import { createRoot } from 'react-dom/client';
-import {
-  Zap,
-  MessageSquare,
-  FileText,
-  Repeat,
-  Shield,
-  Copy,
-  Check,
-  Bot,
-  ArrowRight,
-  Menu,
-  X,
-  Smartphone,
-  Globe
-} from 'lucide-react';
 
-const TelertLanding = () => {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState('rich');
-  const [copied, setCopied] = useState(false);
+// What the "Copy AI instructions" button copies.
+const aiInstructions = (id: string | undefined) =>
+  `Send Telegram notifications by POSTing JSON like {"event": "Deploy finished", "text": "v1.2 is live"} to ${ORIGIN}/t/${id ?? '<webhook-id>'}. ` +
+  `${id ? '' : 'Get the webhook id by sending /webhook to @telerts_bot in Telegram. '}Full API: ${ORIGIN}/llms.txt`;
 
-  const [hash, setHash] = useState(() => parseHash(window.location.hash));
-  const id = hash.id;
-  const fill = (text: string) => text.split('{webhookId}').join(id ?? '{webhookId}');
+const copyText = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    document.execCommand('copy');
+    area.remove();
+  }
+};
 
-  // Section links keep the id in the hash. Deep links: #api-photo opens the API section on that tab.
-  useEffect(() => {
-    const onHashChange = () => setHash(parseHash(window.location.hash));
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
-  }, []);
-
-  useEffect(() => {
-    const { section } = hash;
-    const tab = section.match(/^api-(\w+)$/);
-    if (tab && tab[1] in endpoints) {
-      setActiveTab(tab[1]);
-    }
-    const target = tab ? 'api' : section;
-    if (target) document.getElementById(target)?.scrollIntoView();
-  }, [hash.section]);
-
-  // Normal anchor clicks would drop the id from the hash, so rebuild it.
-  const goTo = (section: string) => (event: React.MouseEvent) => {
-    event.preventDefault();
-    window.location.hash = buildHash(id, section);
-    setIsMenuOpen(false);
+function useCopy() {
+  const [copied, setCopied] = useState<string | null>(null);
+  const copy = (key: string, text: string) => {
+    copyText(text);
+    setCopied(key);
+    setTimeout(() => setCopied((current) => (current === key ? null : current)), 1800);
   };
+  return { copied, copy };
+}
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+// ---- Telegram previews. Mirror formatRichMessage in src/message.ts. ----
 
-  const steps = [
-    {
-      num: "01",
-      title: "Add the Bot",
-      desc: "Search for @telerts_bot in Telegram and add it to your chat or group.",
-      icon: <Bot className="w-6 h-6 text-blue-400" />
-    },
-    {
-      num: "02",
-      title: "Get Webhook",
-      desc: "Send the command /webhook. You'll receive your unique secure URL.",
-      icon: <Globe className="w-6 h-6 text-purple-400" />
-    },
-    {
-      num: "03",
-      title: "Send Data",
-      desc: "POST JSON data to your URL. It appears instantly in your chat.",
-      icon: <Zap className="w-6 h-6 text-yellow-400" />
-    }
-  ];
+type Msg = {
+  event: string;
+  text?: string;
+  emoji?: string;
+  channel?: string;
+  metadata?: Record<string, string>;
+  plain?: boolean;
+};
 
-  const features = [
-    {
-      icon: <Repeat className="w-6 h-6 text-emerald-400" />,
-      title: "JSON Mapping",
-      description: "Transform incoming webhooks from GitHub, Stripe, or Jira using $json.path syntax without writing glue code."
-    },
-    {
-      icon: <MessageSquare className="w-6 h-6 text-blue-400" />,
-      title: "Rich Formatting",
-      description: "Send structured data with titles, emojis, and key-value metadata tables that render beautifully in Telegram."
-    },
-    {
-      icon: <FileText className="w-6 h-6 text-purple-400" />,
-      title: "File Uploads",
-      description: "Need to send a log file or report? Upload files directly to the chat via the /file endpoint."
-    },
-    {
-      icon: <Shield className="w-6 h-6 text-orange-400" />,
-      title: "Thread Support",
-      description: "Full support for Telegram Topics. Webhooks survive group-to-supergroup migrations automatically."
-    }
-  ];
+// Telegram highlights #hashtags like links.
+const Tag = ({ children }: { children: string }) => <span className="tg-tag">{children}</span>;
 
-  const endpoints: Record<string, { title: string; method: string; url: string; desc: string; code: string }> = {
-    rich: {
-      title: "Rich Message",
-      method: "POST",
-      url: "/t/{webhookId}",
-      desc: "Send formatted notifications with metadata tables. Add \"plain\": true for just a bold title and normal text (no emoji, channel or metadata lines).",
-      code: `curl -X POST https://telert.reily.app/t/{webhookId} \\
+function renderMessage(m: Msg): React.ReactNode[] {
+  if (m.plain) {
+    return [<b key="t">{m.event}</b>, m.text ? `\n\n${m.text}` : ''];
+  }
+  const out: React.ReactNode[] = [];
+  if (m.emoji) out.push(`${m.emoji} • `);
+  if (m.channel) {
+    out.push(<u key="c"><Tag>{`#${m.channel}`}</Tag></u>, '\n\n');
+  }
+  out.push(<b key="e">{m.event}</b>);
+  if (m.text) out.push('\n\n', <span key="x" className="tg-mono">{m.text}</span>);
+  const meta = Object.entries(m.metadata ?? {});
+  if (meta.length) {
+    out.push('\n\n');
+    meta.forEach(([key, value], i) => {
+      if (i) out.push('\n');
+      out.push(<Tag key={`m${i}`}>{`#${key}`}</Tag>, `: ${value}`);
+    });
+  }
+  return out;
+}
+
+const Time = () => <div className="time">12:00</div>;
+
+const MessageBubble = ({ message }: { message: Msg }) => (
+  <div className="bubble">
+    <div className="body">{renderMessage(message)}</div>
+    <Time />
+  </div>
+);
+
+const PhotoBubble = ({ message }: { message: Msg }) => (
+  <div className="bubble media">
+    <div className="photo" aria-label="Your image">
+      <svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+        <rect width="400" height="300" fill="#9db4c4" />
+        <circle cx="290" cy="90" r="30" fill="#e8eef2" />
+        <path d="M0 300V200l90-70 80 60 70-40 160 90v60z" fill="#6f8a9c" />
+        <path d="M0 300v-60l120-50 110 50 170-30v90z" fill="#52697a" />
+      </svg>
+    </div>
+    <div className="body">{renderMessage(message)}</div>
+    <Time />
+  </div>
+);
+
+const FileBubble = ({ name, size }: { name: string; size: string }) => (
+  <div className="bubble">
+    <div className="doc">
+      <div className="icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+          <path d="M14 3v5h5" />
+        </svg>
+      </div>
+      <div>
+        <div className="name">{name}</div>
+        <div className="size">{size}</div>
+      </div>
+    </div>
+    <Time />
+  </div>
+);
+
+type Endpoint = {
+  key: string;
+  title: string;
+  method: 'GET' | 'POST';
+  url: string;
+  desc: string;
+  code: string;
+  preview: React.ReactNode;
+};
+
+const endpoints: Endpoint[] = [
+  {
+    key: 'rich',
+    title: 'Rich message',
+    method: 'POST',
+    url: '/t/{webhookId}',
+    desc: 'Title, text, emoji, channel and metadata lines. Set notify to false to send silently.',
+    code: `curl -X POST ${ORIGIN}/t/{webhookId} \\
   -H "Content-Type: application/json" \\
   -d '{
     "event": "New User Registered",
@@ -138,291 +161,181 @@ const TelertLanding = () => {
       "plan": "Pro"
     },
     "notify": true
-  }'`
-    },
-    get: {
-      title: "Simple GET",
-      method: "GET",
-      url: "/t/{webhookId}",
-      desc: "Trigger alerts via simple URL parameters. Great for simple scripts.",
-      code: `curl "https://telert.reily.app/t/{webhookId}?event=Deploy&text=v1.2+Live&emoji=🚀"`
-    },
-    map: {
-      title: "JSON Mapping",
-      method: "POST",
-      url: "/t/{webhookId}/map",
-      desc: "Extract values from 3rd party webhooks using JSON path syntax.",
-      code: `curl -X POST "https://telert.reily.app/t/{webhookId}/map?event=\\$json.action&text=\\$json.repo.name" \\
+  }'`,
+    preview: (
+      <MessageBubble
+        message={{
+          event: 'New User Registered',
+          channel: 'WebApp',
+          emoji: '👋',
+          text: 'A new user just signed up!',
+          metadata: { email: 'user@example.com', plan: 'Pro' },
+        }}
+      />
+    ),
+  },
+  {
+    key: 'plain',
+    title: 'Plain message',
+    method: 'POST',
+    url: '/t/{webhookId}',
+    desc: 'Same endpoint with "plain": true. A bold title and the text as normal paragraph text. Emoji, channel and metadata are not shown.',
+    code: `curl -X POST ${ORIGIN}/t/{webhookId} \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "event": "Deploy finished",
+    "text": "v1.2 is live",
+    "plain": true
+  }'`,
+    preview: <MessageBubble message={{ event: 'Deploy finished', text: 'v1.2 is live', plain: true }} />,
+  },
+  {
+    key: 'get',
+    title: 'Simple GET',
+    method: 'GET',
+    url: '/t/{webhookId}',
+    desc: 'The same fields as query parameters, for scripts that can only make GET requests. Metadata is a URL-encoded JSON object.',
+    code: `curl "${ORIGIN}/t/{webhookId}?event=Deploy&text=v1.2+Live&emoji=🚀"`,
+    preview: <MessageBubble message={{ event: 'Deploy', text: 'v1.2 Live', emoji: '🚀' }} />,
+  },
+  {
+    key: 'map',
+    title: 'JSON mapping',
+    method: 'POST',
+    url: '/t/{webhookId}/map',
+    desc: 'Forward a third-party webhook as is. Query values starting with $json are read from the request body (for example $json.repo.name). Add metadata with metadata.<key>=.',
+    code: `curl -X POST "${ORIGIN}/t/{webhookId}/map?event=\\$json.action&text=\\$json.repo.name" \\
   -H "Content-Type: application/json" \\
   -d '{
     "action": "push",
     "repo": { "name": "backend-api" }
-  }'`
-    },
-    file: {
-      title: "File Upload",
-      method: "POST",
-      url: "/t/{webhookId}/file",
-      desc: "Upload text files or logs directly to the chat.",
-      code: `curl -X POST https://telert.reily.app/t/{webhookId}/file \\
+  }'`,
+    preview: <MessageBubble message={{ event: 'push', text: 'backend-api' }} />,
+  },
+  {
+    key: 'file',
+    title: 'File upload',
+    method: 'POST',
+    url: '/t/{webhookId}/file',
+    desc: 'Send a text file, such as a log, as a Telegram document.',
+    code: `curl -X POST ${ORIGIN}/t/{webhookId}/file \\
   -H "Content-Type: application/json" \\
   -d '{
     "fileName": "error.log",
     "content": "Stack trace details..."
-  }'`
-    },
-    photo: {
-      title: "Send Photo",
-      method: "POST",
-      url: "/t/{webhookId}/photo",
-      desc: "Upload an image (or pass an image URL) with an optional caption. Use plain=true for just a bold title and text.",
-      code: `curl -X POST https://telert.reily.app/t/{webhookId}/photo \\
+  }'`,
+    preview: <FileBubble name="error.log" size="22 B" />,
+  },
+  {
+    key: 'photo',
+    title: 'Send photo',
+    method: 'POST',
+    url: '/t/{webhookId}/photo',
+    desc: 'Upload an image, or pass an image URL, with an optional caption. The caption takes the same fields as a rich message, including plain.',
+    code: `curl -X POST ${ORIGIN}/t/{webhookId}/photo \\
   -F photo=@./image.jpg \\
   -F event="Boon" \\
   -F text="Message text" \\
-  -F plain=true`
-    }
+  -F plain=true`,
+    preview: <PhotoBubble message={{ event: 'Boon', text: 'Message text', plain: true }} />,
+  },
+];
+
+const App = () => {
+  const [hash, setHash] = useState(() => parseHash(window.location.hash));
+  const { copied, copy } = useCopy();
+  const { id } = hash;
+  const fill = (text: string) => text.split('{webhookId}').join(id ?? '<webhook-id>');
+  const instructions = aiInstructions(id);
+
+  useEffect(() => {
+    const onHashChange = () => setHash(parseHash(window.location.hash));
+    window.addEventListener('hashchange', onHashChange);
+    return () => window.removeEventListener('hashchange', onHashChange);
+  }, []);
+
+  // Deep links: #api-photo scrolls to that endpoint, #api to the docs.
+  useEffect(() => {
+    if (hash.section) document.getElementById(hash.section)?.scrollIntoView();
+  }, [hash.section]);
+
+  // Plain anchor clicks would drop the id from the hash, so rebuild it.
+  const goTo = (section: string) => (event: React.MouseEvent) => {
+    event.preventDefault();
+    window.location.hash = buildHash(id, section);
   };
 
   return (
-    <div className="min-h-screen bg-[#0F172A] text-slate-100 font-sans selection:bg-blue-500/30">
-
-      {/* Navigation */}
-      <nav className="fixed w-full z-50 bg-[#0F172A]/80 backdrop-blur-md border-b border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center gap-2">
-              <div className="bg-blue-600 p-1.5 rounded-lg">
-                <Smartphone className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-bold text-xl tracking-tight text-white">Telert</span>
-            </div>
-
-            <div className="hidden md:block">
-              <div className="ml-10 flex items-baseline space-x-8">
-                <a href="#how-it-works" onClick={goTo('how-it-works')} className="hover:text-blue-400 transition-colors px-3 py-2 rounded-md text-sm font-medium">How it Works</a>
-                <a href="#api" onClick={goTo('api')} className="hover:text-blue-400 transition-colors px-3 py-2 rounded-md text-sm font-medium">API Reference</a>
-                <a href="#features" onClick={goTo('features')} className="hover:text-blue-400 transition-colors px-3 py-2 rounded-md text-sm font-medium">Features</a>
-                <a href="https://t.me/telerts_bot" target="_blank" rel="noreferrer" className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full text-sm font-semibold transition-all shadow-[0_0_15px_rgba(37,99,235,0.4)] hover:shadow-[0_0_25px_rgba(37,99,235,0.6)]">
-                  Start Bot
-                </a>
-              </div>
-            </div>
-
-            <div className="-mr-2 flex md:hidden">
-              <button
-                onClick={() => setIsMenuOpen(!isMenuOpen)}
-                className="inline-flex items-center justify-center p-2 rounded-md text-slate-400 hover:text-white hover:bg-slate-800 focus:outline-none"
-              >
-                {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-              </button>
-            </div>
-          </div>
+    <>
+      <header className="top">
+        <div className="wrap">
+          <a className="brand" href="#" onClick={(e) => { e.preventDefault(); window.scrollTo(0, 0); }}>Telert</a>
+          <a href={BOT_URL}>@telerts_bot</a>
         </div>
+      </header>
 
-        {/* Mobile menu */}
-        {isMenuOpen && (
-          <div className="md:hidden bg-[#0F172A] border-t border-slate-800">
-            <div className="px-2 pt-2 pb-3 space-y-1">
-              <a href="#how-it-works" onClick={goTo('how-it-works')} className="block px-3 py-2 text-base font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-md">How it Works</a>
-              <a href="#api" onClick={goTo('api')} className="block px-3 py-2 text-base font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-md">API Reference</a>
-              <a href="#features" onClick={goTo('features')} className="block px-3 py-2 text-base font-medium text-slate-300 hover:text-white hover:bg-slate-800 rounded-md">Features</a>
-              <a href="https://t.me/telerts_bot" target="_blank" rel="noreferrer" className="block px-3 py-2 text-base font-medium text-blue-400 hover:text-blue-300">Start Bot</a>
-            </div>
+      <div className="wrap">
+        <section className="intro">
+          <h1>Telegram notifications from a URL</h1>
+          <p className="lead">Send a request from any script or service, and it shows up in your Telegram chat.</p>
+          <p>Add <a href={BOT_URL}>@telerts_bot</a> to a group and send <code>/webhook</code>. The bot replies with your webhook URL.</p>
+          <div className="actions">
+            <a className="btn primary" href={BOT_URL}>Open @telerts_bot</a>
+            <button className="btn" onClick={() => copy('ai', instructions)}>
+              {copied === 'ai' ? 'Copied' : 'Copy AI instructions'}
+            </button>
           </div>
-        )}
-      </nav>
-
-      {/* Hero Section */}
-      <div className="relative pt-32 pb-20 sm:pt-40 sm:pb-24 overflow-hidden">
-        {/* Background Gradients */}
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full z-0 pointer-events-none">
-            <div className="absolute top-10 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-[100px]"></div>
-            <div className="absolute bottom-10 right-1/4 w-80 h-80 bg-purple-600/10 rounded-full blur-[100px]"></div>
-        </div>
-
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-400 text-sm mb-8 font-medium">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
-            </span>
-            Now supporting JSON Mapping
-          </div>
-
-          <h1 className="text-5xl sm:text-7xl font-extrabold tracking-tight mb-8 text-white">
-            Your App's Voice in <br className="hidden sm:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-purple-400">Telegram.</span>
-          </h1>
-
-          <p className="mt-4 max-w-2xl mx-auto text-xl text-slate-400 leading-relaxed">
-            The simplest way to send rich notifications, files, and alerts from your code directly to Telegram chats via Webhook.
+          <div className="ai-text">{instructions}</div>
+          <p className="note">
+            {id
+              ? 'Your webhook ID is filled into the examples below. It stays in the URL hash and is never sent to the server.'
+              : <>Paste the instructions into your coding agent. Open this page with <code>#id=&lt;webhook-id&gt;</code> to fill in your own URL.</>}
           </p>
+        </section>
 
-          <div className="mt-10 flex flex-col sm:flex-row justify-center gap-4">
-            <a href="https://t.me/telerts_bot" className="inline-flex items-center justify-center px-8 py-3.5 border border-transparent text-base font-bold rounded-lg text-white bg-blue-600 hover:bg-blue-500 md:text-lg transition-all shadow-[0_0_20px_rgba(37,99,235,0.3)]">
-              <Bot className="w-5 h-5 mr-2" /> Add @telerts_bot
-            </a>
-            <a href="#api" onClick={goTo('api')} className="inline-flex items-center justify-center px-8 py-3.5 border border-slate-700 text-base font-medium rounded-lg text-slate-300 bg-slate-800/50 hover:bg-slate-800 hover:text-white md:text-lg transition-colors">
-              View API Docs
-            </a>
-          </div>
+        <div className="docs" id="api">
+          <nav aria-label="Endpoints">
+            <h2>Endpoints</h2>
+            <div className="links">
+              {endpoints.map((ep) => (
+                <a
+                  key={ep.key}
+                  href={`#api-${ep.key}`}
+                  className={hash.section === `api-${ep.key}` ? 'on' : ''}
+                  onClick={goTo(`api-${ep.key}`)}
+                >
+                  {ep.title}
+                </a>
+              ))}
+            </div>
+          </nav>
+
+          <main>
+            {endpoints.map((ep) => (
+              <section key={ep.key} id={`api-${ep.key}`} className="ep">
+                <h3>{ep.title}</h3>
+                <div className="route">
+                  <span className="method">{ep.method}</span>
+                  <code>{fill(ep.url)}</code>
+                </div>
+                <p>{ep.desc}</p>
+                <div className="codebox">
+                  <pre>{fill(ep.code)}</pre>
+                  <button className="copy" onClick={() => copy(ep.key, fill(ep.code))}>
+                    {copied === ep.key ? 'Copied' : 'Copy'}
+                  </button>
+                </div>
+                <div className="preview">
+                  <div className="label">Preview in Telegram</div>
+                  <div className="chat">{ep.preview}</div>
+                </div>
+              </section>
+            ))}
+          </main>
         </div>
       </div>
-
-      {/* Steps Section */}
-      <div id="how-it-works" className="py-20 bg-slate-900/50 border-y border-slate-800">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-                {steps.map((step, idx) => (
-                    <div key={idx} className="relative flex flex-col items-center text-center group">
-                        <div className="w-16 h-16 rounded-2xl bg-slate-800 border border-slate-700 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-lg group-hover:border-blue-500/50">
-                            {step.icon}
-                        </div>
-                        <div className="absolute -top-4 -right-4 text-6xl font-black text-slate-800/50 -z-10 select-none font-mono">
-                            {step.num}
-                        </div>
-                        <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
-                        <p className="text-slate-400">{step.desc}</p>
-                        {idx !== steps.length - 1 && (
-                             <div className="hidden md:block absolute top-8 -right-6 w-12 text-slate-700">
-                                <ArrowRight />
-                             </div>
-                        )}
-                    </div>
-                ))}
-            </div>
-        </div>
-      </div>
-
-      {/* Interactive API Section */}
-      <div id="api" className="py-24 relative">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-12">
-                <h2 className="text-3xl font-bold text-white sm:text-4xl">Developer-First API</h2>
-                <p className="mt-4 text-slate-400">One URL, infinite possibilities.</p>
-            </div>
-
-            <div className="bg-[#1E293B] rounded-2xl border border-slate-700 shadow-2xl overflow-hidden flex flex-col lg:flex-row">
-                {/* Tabs Sidebar */}
-                <div className="lg:w-1/4 border-b lg:border-b-0 lg:border-r border-slate-700 bg-slate-900/50">
-                    <div className="p-4 font-mono text-xs font-bold text-slate-500 uppercase tracking-wider">Endpoints</div>
-                    {Object.keys(endpoints).map((key) => (
-                        <button
-                            key={key}
-                            onClick={() => setActiveTab(key)}
-                            className={`w-full text-left px-6 py-4 text-sm font-medium transition-colors flex items-center justify-between
-                                ${activeTab === key
-                                    ? 'bg-blue-600/10 text-blue-400 border-l-2 border-blue-500'
-                                    : 'text-slate-400 hover:bg-slate-800 hover:text-white border-l-2 border-transparent'
-                                }`}
-                        >
-                            <span>{endpoints[key].title}</span>
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${endpoints[key].method === 'GET' ? 'bg-green-900/50 text-green-400' : 'bg-yellow-900/50 text-yellow-400'}`}>
-                                {endpoints[key].method}
-                            </span>
-                        </button>
-                    ))}
-                </div>
-
-                {/* Content Area */}
-                <div className="lg:w-3/4 p-6 sm:p-8 flex flex-col">
-                    <div className="flex items-center gap-3 mb-4">
-                        <span className={`font-mono text-sm px-2 py-1 rounded ${endpoints[activeTab].method === 'GET' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                            {endpoints[activeTab].method}
-                        </span>
-                        <code className="text-slate-300 font-mono text-sm sm:text-base bg-slate-950 px-3 py-1 rounded border border-slate-800">
-                            {fill(endpoints[activeTab].url)}
-                        </code>
-                    </div>
-
-                    <p className="text-slate-400 mb-6 text-sm">{endpoints[activeTab].desc}</p>
-                    {id && (
-                        <p className="text-green-400 mb-6 text-xs">Examples are filled in with your webhook ID. It stays in the URL hash and is never sent to the server.</p>
-                    )}
-
-                    <div className="relative group flex-grow">
-                        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                                onClick={() => copyToClipboard(fill(endpoints[activeTab].code))}
-                                className="p-2 bg-slate-700 rounded-md text-slate-300 hover:text-white hover:bg-slate-600 transition-colors"
-                            >
-                                {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
-                            </button>
-                        </div>
-                        <pre className="bg-[#0B1120] p-6 rounded-lg text-sm font-mono text-slate-300 overflow-x-auto border border-slate-800 shadow-inner h-full">
-                            {fill(endpoints[activeTab].code)}
-                        </pre>
-                    </div>
-
-                    {activeTab === 'rich' && (
-                        <div className="mt-8 pt-8 border-t border-slate-700">
-                             <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4">Preview in Telegram</div>
-                             {/* Telegram Message Preview Mockup */}
-                             <div className="bg-[#182533] p-4 rounded-lg max-w-sm border border-slate-800 shadow-lg">
-                                 <div className="flex items-center gap-2 mb-2">
-                                    <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white text-xs font-bold">Bot</div>
-                                    <div>
-                                        <div className="text-white font-semibold text-sm">Telert Bot</div>
-                                        <div className="text-[#64798b] text-xs">bot</div>
-                                    </div>
-                                 </div>
-                                 <div className="text-white text-sm space-y-2">
-                                     <div className="font-bold text-blue-400">👋 • #WebApp</div>
-                                     <div className="font-bold">New User Registered</div>
-                                     <div>A new user just signed up!</div>
-                                     <div className="mt-2 pt-2 border-t border-slate-700/50 text-xs font-mono text-slate-400 space-y-1">
-                                         <div className="flex justify-between"><span>#email:</span> <span className="text-slate-200">user@example.com</span></div>
-                                         <div className="flex justify-between"><span>#plan:</span> <span className="text-slate-200">Pro</span></div>
-                                     </div>
-                                 </div>
-                             </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-        </div>
-      </div>
-
-      {/* Features Grid */}
-      <div id="features" className="py-24 bg-slate-900 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-                {features.map((feature, idx) => (
-                <div key={idx} className="bg-slate-800/50 p-8 rounded-2xl border border-slate-800 hover:border-blue-500/30 transition-all hover:bg-slate-800 group">
-                    <div className="flex items-start gap-4">
-                        <div className="bg-slate-900 p-3 rounded-lg group-hover:scale-110 transition-transform shrink-0">
-                            {feature.icon}
-                        </div>
-                        <div>
-                            <h3 className="text-xl font-bold text-white mb-2">{feature.title}</h3>
-                            <p className="text-slate-400 leading-relaxed">{feature.description}</p>
-                        </div>
-                    </div>
-                </div>
-                ))}
-            </div>
-        </div>
-      </div>
-
-      {/* Footer */}
-      <footer className="bg-[#0F172A] border-t border-slate-800 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row justify-between items-center">
-            <div className="flex items-center gap-2 mb-4 md:mb-0">
-                <div className="bg-blue-600/20 p-1.5 rounded-lg">
-                    <Smartphone className="w-4 h-4 text-blue-400" />
-                </div>
-                <span className="font-semibold text-slate-300">Telert</span>
-            </div>
-            <div className="text-slate-500 text-sm text-center md:text-right">
-                Built for Developers.
-            </div>
-        </div>
-      </footer>
-    </div>
+    </>
   );
 };
 
-// Mount the app
-const root = createRoot(document.getElementById('root')!);
-root.render(<TelertLanding />);
+createRoot(document.getElementById('root')!).render(<App />);
