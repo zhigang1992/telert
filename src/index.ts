@@ -9,7 +9,7 @@
  */
 import { Application, type Middleware, Router } from "@cfworker/web";
 import type { Update } from "@grammyjs/types";
-import { formatRichMessage, type RichMessage } from "./message";
+import { formatRichMessage, webhookReply, type RichMessage } from "./message";
 import { get } from "./get";
 // @ts-ignore
 import indexHtml from './index.html';
@@ -322,23 +322,7 @@ async function processUpdate(update: Update, env: Env): Promise<void> {
     await sendToChat(
       env,
       chat,
-      `<code>${webhookUrl}</code>
-
-<code>
-{
-  "event": "New User Registered",
-  "channel": "WebApp",
-  "emoji": "👋",
-  "metadata": {
-    "email": "test@example.com"
-  },
-  "text": "Congratz! New user just registered",
-  "notify": true
-}
-</code>
-
-* Only event is required
-`,
+      webhookReply(webhookUrl, env.WEBHOOK_PREFIX),
       {
         parseMode: "HTML",
       }

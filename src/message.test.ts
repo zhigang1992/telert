@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatRichMessage } from "./message";
+import { formatRichMessage, webhookReply } from "./message";
 
 describe("formatRichMessage", () => {
   it("keeps the default layout", () => {
@@ -31,5 +31,15 @@ describe("formatRichMessage", () => {
 
   it("plain without a title is just the text", () => {
     expect(formatRichMessage({ event: "", text: "hi", plain: true })).toBe("hi");
+  });
+});
+
+describe("webhookReply", () => {
+  it("includes the URL, photo hint, plain hint and docs link", () => {
+    const text = webhookReply("https://x.app/t/abc", "https://x.app");
+    expect(text).toContain("<code>https://x.app/t/abc</code>");
+    expect(text).toContain("https://x.app/t/abc/photo");
+    expect(text).toContain('"plain": true');
+    expect(text).toContain("https://x.app/#api-rich");
   });
 });

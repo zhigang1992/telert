@@ -27,7 +27,7 @@
     <div id="root"></div>
 
     <script type="text/tsx">
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Zap,
@@ -49,6 +49,20 @@ const TelertLanding = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('rich');
   const [copied, setCopied] = useState(false);
+
+  // Deep links: https://telert.reily.app/#api-photo opens the API section on that tab.
+  useEffect(() => {
+    const openFromHash = () => {
+      const match = window.location.hash.match(/^#api-(\w+)$/);
+      if (match && match[1] in endpoints) {
+        setActiveTab(match[1]);
+        document.getElementById('api')?.scrollIntoView();
+      }
+    };
+    openFromHash();
+    window.addEventListener('hashchange', openFromHash);
+    return () => window.removeEventListener('hashchange', openFromHash);
+  }, []);
 
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
@@ -105,7 +119,7 @@ const TelertLanding = () => {
       title: "Rich Message",
       method: "POST",
       url: "/t/{webhookId}",
-      desc: "Send formatted notifications with metadata tables.",
+      desc: "Send formatted notifications with metadata tables. Add \"plain\": true for just a bold title and normal text (no emoji, channel or metadata lines).",
       code: `curl -X POST https://telert.reily.app/t/{webhookId} \\
   -H "Content-Type: application/json" \\
   -d '{
