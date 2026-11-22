@@ -309,20 +309,20 @@ async function processUpdate(update: Update, env: Env): Promise<void> {
     const chatKey = JSON.stringify(chat);
     const key = `chat-webhook:${chatKey}`;
     const result = await env.TG_GROUPS.get(key);
-    let webhookUrl: string;
+    let webhookId: string;
     if (result == null) {
       const uuid = crypto.randomUUID();
       await env.TG_GROUPS.put(key, uuid);
       await env.TG_GROUPS.put(`webhook-chat:${uuid}`, chatKey);
-      webhookUrl = `${env.WEBHOOK_PREFIX}/t/${uuid}`;
+      webhookId = uuid;
     } else {
       await env.TG_GROUPS.put(`webhook-chat:${result}`, chatKey);
-      webhookUrl = `${env.WEBHOOK_PREFIX}/t/${result}`;
+      webhookId = result;
     }
     await sendToChat(
       env,
       chat,
-      webhookReply(webhookUrl, env.WEBHOOK_PREFIX),
+      webhookReply(env.WEBHOOK_PREFIX, webhookId),
       {
         parseMode: "HTML",
       }

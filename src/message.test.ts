@@ -35,11 +35,12 @@ describe("formatRichMessage", () => {
 });
 
 describe("webhookReply", () => {
-  it("includes the URL, photo hint, plain hint and docs link", () => {
-    const text = webhookReply("https://x.app/t/abc", "https://x.app");
+  it("is short and links to the docs with the id in the hash", () => {
+    const text = webhookReply("https://x.app", "abc");
     expect(text).toContain("<code>https://x.app/t/abc</code>");
     expect(text).toContain("https://x.app/t/abc/photo");
     expect(text).toContain('"plain": true');
-    expect(text).toContain("https://x.app/#api-rich");
+    expect(text).toContain("https://x.app/#id=abc&amp;api-rich");
+    expect(text).not.toContain("curl");
   });
 });

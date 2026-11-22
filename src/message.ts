@@ -50,17 +50,12 @@ export function formatRichMessage(message: RichMessage): string {
 ${metadata}`;
 }
 
-export function webhookReply(webhookUrl: string, prefix: string): string {
-  return `Your webhook URL (tap to copy):
+export function webhookReply(prefix: string, webhookId: string): string {
+  const webhookUrl = `${prefix}/t/${webhookId}`;
+  return `Your webhook URL:
 <code>${webhookUrl}</code>
 
-Send a message:
-<pre>curl -X POST ${webhookUrl} \\
-  -H "Content-Type: application/json" \\
-  -d '{"event":"Hello","text":"It works!"}'</pre>
-Only <code>event</code> is required. Add <code>"plain": true</code> for a bold title with normal text.
+Send JSON with an <code>event</code>, or photos to <code>${webhookUrl}/photo</code>. Add <code>"plain": true</code> for a bold title with normal text.
 
-Photos work too: POST to <code>${webhookUrl}/photo</code> with a <code>photo</code> file or image URL.
-
-Docs: ${prefix}/#api-rich`;
+Docs with examples filled in for this group: ${prefix}/#id=${webhookId}&amp;api-rich`;
 }
