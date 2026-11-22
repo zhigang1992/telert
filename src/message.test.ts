@@ -35,12 +35,20 @@ describe("formatRichMessage", () => {
 });
 
 describe("webhookReply", () => {
-  it("is short and links to the docs with the id in the hash", () => {
-    const text = webhookReply("https://x.app", "abc");
-    expect(text).toContain("<code>https://x.app/t/abc</code>");
-    expect(text).toContain("https://x.app/t/abc/photo");
-    expect(text).toContain('"plain": true');
-    expect(text).toContain("https://x.app/#id=abc&amp;api-rich");
-    expect(text).not.toContain("curl");
+  it("is just the URL in a code block with copy and docs buttons", () => {
+    const { text, replyMarkup } = webhookReply("https://x.app", "abc");
+    expect(text).toBe("<pre>https://x.app/t/abc</pre>");
+    expect(replyMarkup).toEqual({
+      inline_keyboard: [
+        [
+          {
+            text: "Copy URL",
+            copy_text: { text: "https://x.app/t/abc" },
+            style: "primary",
+          },
+          { text: "Docs", url: "https://x.app/#id=abc&api-rich" },
+        ],
+      ],
+    });
   });
 });

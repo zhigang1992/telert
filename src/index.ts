@@ -319,14 +319,12 @@ async function processUpdate(update: Update, env: Env): Promise<void> {
       await env.TG_GROUPS.put(`webhook-chat:${result}`, chatKey);
       webhookId = result;
     }
-    await sendToChat(
-      env,
-      chat,
-      webhookReply(env.WEBHOOK_PREFIX, webhookId),
-      {
-        parseMode: "HTML",
-      }
-    );
+    const reply = webhookReply(env.WEBHOOK_PREFIX, webhookId);
+    await sendToChat(env, chat, reply.text, {
+      parseMode: "HTML",
+      disableLinkPreview: true,
+      replyMarkup: reply.replyMarkup,
+    });
   }
 }
 
@@ -341,6 +339,7 @@ async function sendToChat(
     parseMode?: "HTML";
     disableNotification?: boolean;
     disableLinkPreview?: boolean;
+    replyMarkup?: unknown;
   }
 ): Promise<void> {
   await fetch(`https://api.telegram.org/bot${env.BOT_TOKEN}/sendMessage`, {
@@ -357,6 +356,7 @@ async function sendToChat(
       link_preview_options: options?.disableLinkPreview
         ? { is_disabled: true }
         : undefined,
+      reply_markup: options?.replyMarkup,
     }),
   });
 }
