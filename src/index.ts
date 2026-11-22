@@ -9,7 +9,7 @@
  */
 import { Application, type Middleware, Router } from "@cfworker/web";
 import type { Update } from "@grammyjs/types";
-import { formatRichMessage, type RichMessage } from "./message";
+import { formatRichMessage, webhookReply, type RichMessage } from "./message";
 import { get } from "./get";
 // @ts-ignore
 import indexHtml from './index.html';
@@ -309,36 +309,20 @@ async function processUpdate(update: Update, env: Env): Promise<void> {
     const chatKey = JSON.stringify(chat);
     const key = `chat-webhook:${chatKey}`;
     const result = await env.TG_GROUPS.get(key);
-    let webhookUrl: string;
+    let webhookId: string;
     if (result == null) {
       const uuid = crypto.randomUUID();
       await env.TG_GROUPS.put(key, uuid);
       await env.TG_GROUPS.put(`webhook-chat:${uuid}`, chatKey);
-      webhookUrl = `${env.WEBHOOK_PREFIX}/t/${uuid}`;
+      webhookId = uuid;
     } else {
       await env.TG_GROUPS.put(`webhook-chat:${result}`, chatKey);
-      webhookUrl = `${env.WEBHOOK_PREFIX}/t/${result}`;
+      webhookId = result;
     }
     await sendToChat(
       env,
       chat,
-      `<code>${webhookUrl}</code>
-
-<code>
-{
-  "event": "New User Registered",
-  "channel": "WebApp",
-  "emoji": "👋",
-  "metadata": {
-    "email": "test@example.com"
-  },
-  "text": "Congratz! New user just registered",
-  "notify": true
-}
-</code>
-
-* Only event is required
-`,
+      webhookReply(env.WEBHOOK_PREFIX, webhookId),
       {
         parseMode: "HTML",
       }
